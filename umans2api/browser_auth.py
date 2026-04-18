@@ -171,6 +171,17 @@ def _wait_for_logged_in(page, session_url: str, timeout_ms: int):
     raise AuthFlowError(f"登录态未建立: {last}")
 
 
+def _login_in_existing_page(page, email: str, password: str, site_base_url: str, timeout_ms: int):
+    page.goto(f"{site_base_url}/login", wait_until="domcontentloaded")
+    page.locator("input#email").fill(email)
+    page.locator("input#password").fill(password)
+    _find_submit_button(page).click()
+    challenge = _challenge_text(page)
+    if challenge:
+        raise ManualInterventionRequired(f"检测到 challenge: {challenge}")
+    return _wait_for_logged_in(page, f"{site_base_url}/api/auth/session", timeout_ms)
+
+
 def _cookies_to_dict(context) -> dict:
     cookies = {}
     for item in context.cookies():
@@ -200,9 +211,14 @@ def start_registration(email: str, password: str, *, mode: str = "visible", prox
     return BrowserSession(playwright=playwright, browser=browser, context=context, page=page, mode=normalized_mode, site_base_url=base_url, session_url=real_session_url)
 
 
-def complete_registration(session: BrowserSession, verify_url: str, *, timeout_ms: int = 120000) -> dict:
+def complete_registration(session: BrowserSession, verify_url: str, *, email: str = "", password: str = "", timeout_ms: int = 120000) -> dict:
     session.page.goto(verify_url, wait_until="domcontentloaded")
-    session_data = _wait_for_logged_in(session.page, session.session_url, timeout_ms)
+    try:
+        session_data = _wait_for_logged_in(session.page, session.session_url, timeout_ms)
+    except AuthFlowError:
+        if not email or not password:
+            raise
+        session_data = _login_in_existing_page(session.page, email, password, session.site_base_url, timeout_ms)
     return {
         "cookies": _cookies_to_dict(session.context),
         "session": session_data.get("data") or {},
@@ -222,7 +238,7 @@ def register_and_export_cookies(email: str, password: str, verify_url: str, mode
         timeout_ms=timeout_ms,
     )
     try:
-        return complete_registration(session, verify_url, timeout_ms=verify_timeout_ms)
+        return complete_registration(session, verify_url, email=email, password=password, timeout_ms=verify_timeout_ms)
     finally:
         session.close()
 

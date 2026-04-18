@@ -66,7 +66,7 @@ class KeepAliveService:
             return True
 
     def _fetch_session(self, account_id: str):
-        acc = self.account_manager.get_account(account_id, include_cookies=True, include_password=True)
+        acc = self.account_manager.get_account(account_id, include_cookies=True)
         if not acc:
             raise RuntimeError("account not found")
         response = requests.get(
@@ -124,7 +124,7 @@ class KeepAliveService:
         return self._chat_refresh(account_id)
 
     def _chat_refresh(self, account_id: str) -> dict:
-        acc = self.account_manager.get_account(account_id, include_cookies=True)
+        acc = self.account_manager.get_account(account_id, include_cookies=True, include_password=True)
         if not acc:
             raise RuntimeError("account not found")
         model = self._cfg().get("default_model") or "umans-coding-model"
@@ -179,7 +179,7 @@ class KeepAliveService:
         return self._fetch_session(account_id)
 
     def relogin_account(self, account_id: str, browser_mode: str = "headless") -> dict:
-        acc = self.account_manager.get_account(account_id, include_cookies=True)
+        acc = self.account_manager.get_account(account_id, include_cookies=True, include_password=True)
         if not acc:
             raise RuntimeError("account not found")
         email = str(acc.get("email") or "").strip()

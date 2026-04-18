@@ -165,7 +165,9 @@ def _append_task_log(task_id: str, message: str, level: str = "INFO"):
         )
         if len(_current_task["logs"]) > 1000:
             _current_task["logs"] = _current_task["logs"][-1000:]
-    _log(f"[auto-register:{task_id[:8]}] {text}", level_name)
+    if _logger:
+        log_method = getattr(_logger, level_name.lower(), None) or _logger.info
+        log_method(f"[auto-register:{task_id[:8]}] {text}")
 
 
 def _append_task_result(task_id: str, result: dict):
@@ -304,7 +306,7 @@ def _register_one_impl(register_source: str, browser_mode: str, task_id: str | N
         if not verify_url:
             raise RuntimeError("验证邮件中未找到 verify 链接")
         _log("🔗 已拿到验证链接，正在浏览器内完成验证...", "INFO")
-        auth_result = browser_auth.complete_registration(session, verify_url)
+        auth_result = browser_auth.complete_registration(session, verify_url, email=email, password=password)
     finally:
         session.close()
 
@@ -368,12 +370,14 @@ def _run_task(task_id: str, count: int, workers: int, browser_mode: str):
 
     def worker():
         nonlocal active
+        set_thread_log_fn(lambda message, level="INFO": _append_task_log(task_id, message, level))
         with _task_lock:
             active += 1
             _set_active_workers(task_id, active)
         try:
             _worker_loop(task_id, pending, "manual", browser_mode)
         finally:
+            set_thread_log_fn(None)
             with _task_lock:
                 active -= 1
                 _set_active_workers(task_id, active)
