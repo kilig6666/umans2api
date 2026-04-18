@@ -1,0 +1,3031 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>umans2api · Premium Control Center</title>
+  <style>
+    :root {
+      --bg: #07111f;
+      --bg-soft: #0c1629;
+      --surface: rgba(15, 24, 42, 0.78);
+      --surface-strong: rgba(18, 28, 49, 0.94);
+      --surface-muted: rgba(12, 19, 34, 0.72);
+      --line: rgba(255, 255, 255, 0.08);
+      --line-strong: rgba(255, 255, 255, 0.14);
+      --text: #f6f8ff;
+      --text-soft: #a7b2ca;
+      --text-faint: #7d8aa8;
+      --accent: #72a1ff;
+      --accent-2: #9c7bff;
+      --ok: #3dd9a4;
+      --warn: #ffbe5c;
+      --danger: #ff6f7d;
+      --shadow: 0 24px 80px rgba(1, 7, 18, 0.45);
+      --radius-xl: 28px;
+      --radius-lg: 22px;
+      --radius-md: 16px;
+      --radius-sm: 12px;
+      --sidebar-w: 268px;
+      --body-bg:
+        radial-gradient(circle at top left, rgba(114,161,255,0.18), transparent 28%),
+        radial-gradient(circle at top right, rgba(156,123,255,0.12), transparent 20%),
+        linear-gradient(180deg, #08111f 0%, #050b15 100%);
+      --grid-color: rgba(255,255,255,0.03);
+      --auth-bg: linear-gradient(180deg, rgba(18, 29, 51, 0.92), rgba(10, 18, 31, 0.92));
+      --sidebar-bg: linear-gradient(180deg, rgba(7, 13, 24, 0.92), rgba(6, 10, 18, 0.96));
+      --sidebar-foot-bg: rgba(255,255,255,0.03);
+      --nav-hover-bg: rgba(255,255,255,0.04);
+      --surface-bg: linear-gradient(180deg, rgba(18, 27, 46, 0.92), rgba(9, 15, 28, 0.92));
+      --hero-bg:
+        radial-gradient(circle at top right, rgba(114,161,255,0.28), transparent 34%),
+        radial-gradient(circle at bottom left, rgba(156,123,255,0.22), transparent 32%),
+        linear-gradient(135deg, rgba(15, 24, 43, 0.98), rgba(7, 13, 24, 0.98));
+      --hero-after-bg: radial-gradient(circle, rgba(114,161,255,0.18), transparent 72%);
+      --metric-bg: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+      --card-bg: rgba(255,255,255,0.04);
+      --card-border: rgba(255,255,255,0.06);
+      --secondary-bg: rgba(255,255,255,0.05);
+      --secondary-border: rgba(255,255,255,0.08);
+      --input-bg: rgba(6, 12, 24, 0.72);
+      --input-focus-bg: rgba(9, 16, 31, 0.88);
+      --toggle-bg: rgba(8, 15, 28, 0.78);
+      --toggle-shadow: 0 14px 28px rgba(1, 7, 18, 0.24);
+    }
+    body[data-theme="light"] {
+      --bg: #eef4ff;
+      --bg-soft: #dfe9fb;
+      --surface: rgba(255, 255, 255, 0.82);
+      --surface-strong: rgba(255, 255, 255, 0.96);
+      --surface-muted: rgba(244, 247, 255, 0.92);
+      --line: rgba(21, 35, 61, 0.08);
+      --line-strong: rgba(21, 35, 61, 0.14);
+      --text: #15233d;
+      --text-soft: #55637c;
+      --text-faint: #7a88a2;
+      --accent: #4378ff;
+      --accent-2: #7867ff;
+      --ok: #18ad79;
+      --warn: #d98c1b;
+      --danger: #e15468;
+      --shadow: 0 24px 72px rgba(33, 66, 128, 0.12);
+      --body-bg:
+        radial-gradient(circle at top left, rgba(67,120,255,0.18), transparent 30%),
+        radial-gradient(circle at top right, rgba(120,103,255,0.12), transparent 22%),
+        linear-gradient(180deg, #f8fbff 0%, #eaf1ff 100%);
+      --grid-color: rgba(21,35,61,0.05);
+      --auth-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(243, 247, 255, 0.96));
+      --sidebar-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(244, 248, 255, 0.96));
+      --sidebar-foot-bg: rgba(255,255,255,0.62);
+      --nav-hover-bg: rgba(67,120,255,0.08);
+      --surface-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(244, 248, 255, 0.95));
+      --hero-bg:
+        radial-gradient(circle at top right, rgba(67,120,255,0.18), transparent 34%),
+        radial-gradient(circle at bottom left, rgba(120,103,255,0.13), transparent 32%),
+        linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(241, 246, 255, 0.98));
+      --hero-after-bg: radial-gradient(circle, rgba(67,120,255,0.14), transparent 72%);
+      --metric-bg: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(241,246,255,0.92));
+      --card-bg: rgba(255,255,255,0.76);
+      --card-border: rgba(21,35,61,0.08);
+      --secondary-bg: rgba(255,255,255,0.9);
+      --secondary-border: rgba(21,35,61,0.1);
+      --input-bg: rgba(255,255,255,0.92);
+      --input-focus-bg: #ffffff;
+      --toggle-bg: rgba(255,255,255,0.82);
+      --toggle-shadow: 0 14px 30px rgba(33, 66, 128, 0.12);
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      color: var(--text);
+      background: var(--body-bg);
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      letter-spacing: 0.01em;
+      transition: background .24s ease, color .24s ease;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(var(--grid-color) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+      background-size: 72px 72px;
+      mask-image: radial-gradient(circle at center, #000 40%, transparent 88%);
+      opacity: 0.18;
+    }
+    .theme-toggle-btn {
+      position: fixed;
+      top: 18px;
+      right: 18px;
+      z-index: 30;
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--secondary-border);
+      background: var(--toggle-bg);
+      color: var(--text);
+      box-shadow: var(--toggle-shadow);
+      backdrop-filter: blur(16px);
+    }
+    .hidden { display: none !important; }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-faint);
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+    .eyebrow::before {
+      content: "";
+      width: 18px;
+      height: 1px;
+      background: linear-gradient(90deg, rgba(114,161,255,0.9), transparent);
+    }
+    .auth-shell {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+    .auth-card {
+      width: min(520px, 100%);
+      padding: 34px;
+      border-radius: 30px;
+      border: 1px solid var(--line-strong);
+      background: var(--auth-bg);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(22px);
+      animation: riseIn .55s ease both;
+    }
+    .brand-mark {
+      width: 52px;
+      height: 52px;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      margin-bottom: 18px;
+      background: linear-gradient(145deg, rgba(114,161,255,0.28), rgba(156,123,255,0.3));
+      border: 1px solid rgba(255,255,255,0.12);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), 0 12px 24px rgba(24, 56, 120, 0.28);
+      font-weight: 700;
+      color: white;
+    }
+    .auth-card h1 {
+      margin: 0 0 10px;
+      font-size: clamp(30px, 5vw, 44px);
+      line-height: 1.04;
+      letter-spacing: -0.03em;
+    }
+    .auth-card p {
+      margin: 0 0 24px;
+      color: var(--text-soft);
+      line-height: 1.7;
+    }
+    .auth-note {
+      margin-top: 14px;
+      color: var(--text-faint);
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .auth-note .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: linear-gradient(145deg, var(--ok), #89ffe2);
+      box-shadow: 0 0 0 5px rgba(61, 217, 164, 0.08);
+    }
+    .app-shell {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: var(--sidebar-w) 1fr;
+    }
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 24px 18px 18px;
+      border-right: 1px solid var(--line);
+      background: var(--sidebar-bg);
+      backdrop-filter: blur(18px);
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+    }
+    .sidebar-head h1 {
+      margin: 10px 0 6px;
+      font-size: 28px;
+      letter-spacing: -0.03em;
+    }
+    .sidebar-head p {
+      margin: 0;
+      color: var(--text-soft);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .nav-group {
+      display: grid;
+      gap: 8px;
+    }
+    .nav-btn {
+      width: 100%;
+      border: 1px solid transparent;
+      border-radius: 18px;
+      background: transparent;
+      color: var(--text-soft);
+      padding: 14px 14px;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: .22s ease;
+      cursor: pointer;
+    }
+    .nav-btn:hover {
+      background: var(--nav-hover-bg);
+      color: var(--text);
+      border-color: var(--card-border);
+      transform: translateX(2px);
+    }
+    .nav-btn.active {
+      color: white;
+      background: linear-gradient(135deg, rgba(114,161,255,0.18), rgba(156,123,255,0.16));
+      border-color: rgba(114,161,255,0.28);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 14px 30px rgba(56, 91, 175, 0.22);
+    }
+    .nav-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      font-size: 17px;
+      background: rgba(255,255,255,0.05);
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,0.06);
+      flex: 0 0 38px;
+    }
+    .nav-copy strong {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 2px;
+      color: currentColor;
+    }
+    .nav-copy span {
+      font-size: 12px;
+      color: var(--text-faint);
+    }
+    .sidebar-foot {
+      margin-top: auto;
+      padding: 18px;
+      border-radius: 20px;
+      background: var(--sidebar-foot-bg);
+      border: 1px solid var(--line);
+      color: var(--text-soft);
+      font-size: 13px;
+      line-height: 1.75;
+    }
+    .workspace {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      padding: 24px 24px 28px;
+      gap: 18px;
+    }
+    .topbar {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 10px 4px 0;
+      animation: riseIn .55s ease both;
+    }
+    .topbar h2 {
+      margin: 8px 0 8px;
+      font-size: clamp(30px, 4vw, 44px);
+      letter-spacing: -0.04em;
+      line-height: 1.02;
+    }
+    .topbar p {
+      margin: 0;
+      max-width: 720px;
+      color: var(--text-soft);
+      line-height: 1.75;
+      font-size: 15px;
+    }
+    .topbar-actions {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 14px;
+      min-width: 260px;
+    }
+    .status-inline {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: var(--card-bg);
+      color: var(--text-soft);
+      font-size: 12px;
+    }
+    .status-pill .pulse {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--ok);
+      box-shadow: 0 0 0 8px rgba(61,217,164,0.12);
+    }
+    .status-pill.warn .pulse { background: var(--warn); box-shadow: 0 0 0 8px rgba(255,190,92,0.12); }
+    .status-pill.danger .pulse { background: var(--danger); box-shadow: 0 0 0 8px rgba(255,111,125,0.12); }
+    .action-row { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
+    button {
+      appearance: none;
+      border: 0;
+      border-radius: 999px;
+      padding: 11px 16px;
+      background: linear-gradient(135deg, #78a6ff, #8b7dff);
+      color: white;
+      font: inherit;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      cursor: pointer;
+      box-shadow: 0 14px 28px rgba(63, 98, 189, 0.28);
+      transition: transform .16s ease, box-shadow .16s ease, opacity .16s ease;
+    }
+    button:hover { transform: translateY(-1px); box-shadow: 0 18px 32px rgba(63, 98, 189, 0.34); }
+    button.secondary {
+      background: var(--secondary-bg);
+      color: var(--text);
+      box-shadow: none;
+      border: 1px solid var(--secondary-border);
+    }
+    button.warn { background: linear-gradient(135deg, #ffcf75, #ffab5c); color: #1b1204; }
+    button.danger { background: linear-gradient(135deg, #ff8f9a, #ff687d); }
+    button.ghost {
+      background: transparent;
+      box-shadow: none;
+      border: 1px solid var(--secondary-border);
+      color: var(--text-soft);
+    }
+    input, textarea, select {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 16px;
+      border: 1px solid var(--secondary-border);
+      background: var(--input-bg);
+      color: var(--text);
+      font: inherit;
+      outline: none;
+      transition: border-color .16s ease, box-shadow .16s ease, background .16s ease;
+    }
+    input:focus, textarea:focus, select:focus {
+      border-color: rgba(114,161,255,0.45);
+      box-shadow: 0 0 0 4px rgba(114,161,255,0.12);
+      background: var(--input-focus-bg);
+    }
+    textarea { min-height: 170px; resize: vertical; }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--text-soft);
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .workspace-scroll {
+      display: grid;
+      gap: 18px;
+      min-width: 0;
+      animation: riseIn .55s ease both;
+    }
+    .view { display: none; }
+    .view.active { display: grid; gap: 18px; }
+    .surface {
+      background: var(--surface-bg);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      padding: 22px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+    }
+    .surface.compact { padding: 18px; }
+    .surface-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+    .surface-header h3, .surface-header h4 { margin: 8px 0 6px; letter-spacing: -0.02em; }
+    .surface-header p { margin: 0; color: var(--text-soft); line-height: 1.7; }
+    .hero-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.85fr);
+      gap: 18px;
+    }
+    .hero-panel {
+      position: relative;
+      overflow: hidden;
+      min-height: 330px;
+      border-radius: var(--radius-xl);
+      padding: 28px;
+      background: var(--hero-bg);
+      border: 1px solid var(--secondary-border);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), var(--shadow);
+    }
+    .hero-panel::after {
+      content: "";
+      position: absolute;
+      inset: auto -60px -80px auto;
+      width: 220px;
+      height: 220px;
+      border-radius: 999px;
+      background: var(--hero-after-bg);
+      pointer-events: none;
+    }
+    .hero-panel h3 {
+      margin: 10px 0 14px;
+      font-size: clamp(28px, 4vw, 44px);
+      letter-spacing: -0.04em;
+      line-height: 1.02;
+      max-width: 10ch;
+    }
+    .hero-panel p {
+      margin: 0;
+      max-width: 620px;
+      color: var(--text-soft);
+      line-height: 1.82;
+      font-size: 15px;
+    }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 22px; }
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+    }
+    .metric-card {
+      padding: 18px 18px 16px;
+      border-radius: 22px;
+      border: 1px solid var(--secondary-border);
+      background: var(--metric-bg);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+    }
+    .metric-label { color: var(--text-faint); font-size: 12px; text-transform: uppercase; letter-spacing: 0.12em; }
+    .metric-value { font-size: 34px; font-weight: 700; letter-spacing: -0.04em; margin: 10px 0 8px; }
+    .metric-note { color: var(--text-soft); font-size: 13px; }
+    .hero-side {
+      display: grid;
+      gap: 18px;
+    }
+    .mini-stack {
+      display: grid;
+      gap: 12px;
+    }
+    .mini-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      font-size: 14px;
+      color: var(--text-soft);
+    }
+    .mini-row strong { color: var(--text); }
+    .kicker-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 18px;
+    }
+    .list-clean { display: grid; gap: 12px; }
+    .list-item {
+      display: grid;
+      gap: 6px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+    }
+    .list-item-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .list-item strong { font-size: 15px; }
+    .list-item small, .meta-line { color: var(--text-soft); line-height: 1.65; }
+    .meta-line { font-size: 13px; }
+    .account-layout {
+      display: grid;
+      grid-template-columns: minmax(420px, 1.1fr) minmax(360px, 0.9fr);
+      gap: 18px;
+      align-items: start;
+    }
+    .account-list {
+      display: grid;
+      gap: 12px;
+      max-height: 780px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+    .account-row {
+      border-radius: 22px;
+      border: 1px solid var(--secondary-border);
+      background: var(--metric-bg);
+      padding: 16px 16px 14px;
+      display: grid;
+      gap: 12px;
+      cursor: pointer;
+      transition: .18s ease;
+    }
+    .account-row:hover { transform: translateY(-1px); border-color: rgba(114,161,255,0.22); }
+    .account-row.active {
+      border-color: rgba(114,161,255,0.34);
+      background: linear-gradient(180deg, rgba(114,161,255,0.12), rgba(255,255,255,0.03));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 16px 30px rgba(56, 91, 175, 0.16);
+    }
+    .account-row-top, .account-row-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+    }
+    .account-row-main {
+      display: flex;
+      gap: 14px;
+      min-width: 0;
+      align-items: flex-start;
+    }
+    .check-wrap {
+      width: 20px;
+      height: 20px;
+      display: grid;
+      place-items: center;
+      margin-top: 3px;
+    }
+    .check-wrap input {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent);
+    }
+    .account-title {
+      display: grid;
+      gap: 6px;
+      min-width: 0;
+    }
+    .account-title strong {
+      font-size: 15px;
+      letter-spacing: -0.01em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .account-sub {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      color: var(--text-soft);
+      font-size: 13px;
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.04);
+      color: var(--text-soft);
+      font-size: 12px;
+    }
+    .chip strong { color: var(--text); font-size: 12px; }
+    .tone-healthy { color: var(--ok); }
+    .tone-expiring { color: var(--warn); }
+    .tone-cooling, .tone-disabled { color: var(--danger); }
+    .editor-stack { display: grid; gap: 16px; }
+    .field-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .editor-actions, .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+    .hint {
+      color: var(--text-faint);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+    .table-wrap {
+      overflow: auto;
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.06);
+      background: rgba(255,255,255,0.02);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 860px;
+    }
+    th, td {
+      padding: 14px 16px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      vertical-align: top;
+      font-size: 14px;
+    }
+    th {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-faint);
+      background: rgba(255,255,255,0.03);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    tbody tr:hover { background: rgba(255,255,255,0.03); }
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.7;
+      font-size: 13px;
+    }
+    .log-shell {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+      gap: 18px;
+      align-items: start;
+    }
+    .log-list-row {
+      cursor: pointer;
+      transition: background .16s ease;
+    }
+    .log-list-row.active { background: rgba(114,161,255,0.1); }
+    .kv-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+    }
+    .kv-card {
+      padding: 14px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .kv-card .label { color: var(--text-faint); font-size: 12px; text-transform: uppercase; letter-spacing: 0.12em; }
+    .kv-card .value { margin-top: 8px; color: var(--text); font-weight: 600; }
+    .config-groups {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 18px;
+    }
+    .config-group {
+      padding: 20px;
+      border-radius: 22px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+      border: 1px solid rgba(255,255,255,0.06);
+      display: grid;
+      gap: 16px;
+    }
+    .config-group h3 { margin: 8px 0 6px; letter-spacing: -0.02em; }
+    .config-group p { margin: 0; color: var(--text-soft); line-height: 1.7; font-size: 14px; }
+    .chat-toolbar {
+      margin-bottom: 18px;
+      padding: 18px;
+      border-radius: 22px;
+      border: 1px solid rgba(255,255,255,0.06);
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+    }
+    .chat-console {
+      display: grid;
+      grid-template-columns: minmax(0, 0.95fr) minmax(340px, 0.85fr);
+      gap: 18px;
+      align-items: start;
+    }
+    .chat-transcript {
+      margin-top: 18px;
+      min-height: 420px;
+      max-height: 860px;
+      overflow: auto;
+      display: grid;
+      gap: 14px;
+    }
+    .chat-msg {
+      padding: 16px 18px;
+      border-radius: 22px;
+      border: 1px solid rgba(255,255,255,0.06);
+      background: rgba(255,255,255,0.03);
+    }
+    .chat-msg.user {
+      background: linear-gradient(135deg, rgba(114,161,255,0.16), rgba(114,161,255,0.08));
+      border-color: rgba(114,161,255,0.22);
+    }
+    .chat-msg.assistant {
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
+    }
+    .chat-msg-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+      color: var(--text-faint);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+    .chat-msg-body {
+      white-space: pre-wrap;
+      line-height: 1.75;
+      color: var(--text);
+    }
+    .chat-msg-submeta {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      color: var(--text-faint);
+      font-size: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .chat-empty {
+      padding: 28px 24px;
+      border-radius: 22px;
+      border: 1px dashed rgba(255,255,255,0.12);
+      color: var(--text-soft);
+      line-height: 1.8;
+    }
+    .chat-detail {
+      margin-top: 14px;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,0.06);
+      background: rgba(255,255,255,0.02);
+      overflow: hidden;
+    }
+    .chat-detail summary {
+      cursor: pointer;
+      list-style: none;
+      padding: 14px 16px;
+      color: var(--text-soft);
+      font-weight: 600;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .chat-detail summary::-webkit-details-marker { display: none; }
+    .chat-side-panel {
+      min-height: 160px;
+      max-height: 320px;
+      overflow: auto;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+    }
+    .result-panel {
+      min-height: 340px;
+      border-radius: 22px;
+      border: 1px solid rgba(255,255,255,0.06);
+      background: linear-gradient(180deg, rgba(10, 17, 31, 0.96), rgba(7, 12, 24, 0.96));
+      padding: 18px;
+    }
+    .model-list {
+      display: grid;
+      gap: 10px;
+      max-height: 320px;
+      overflow: auto;
+    }
+    .model-item {
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      font-size: 13px;
+      color: var(--text-soft);
+    }
+    .footer-note {
+      margin-top: 18px;
+      color: var(--text-faint);
+      font-size: 12px;
+      line-height: 1.7;
+    }
+    @keyframes riseIn {
+      from { opacity: 0; transform: translateY(18px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @media (max-width: 1180px) {
+      .app-shell { grid-template-columns: 1fr; }
+      .sidebar {
+        position: relative;
+        height: auto;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .nav-group { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+      .sidebar-foot { display: none; }
+      .hero-grid, .account-layout, .log-shell, .chat-console { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 760px) {
+      .workspace { padding: 18px 14px 24px; }
+      .auth-card { padding: 28px 20px; }
+      .surface, .hero-panel { padding: 20px; }
+      .topbar { padding-top: 2px; }
+      .topbar-actions { align-items: stretch; min-width: 0; }
+      .status-inline, .action-row { justify-content: flex-start; }
+      .field-grid, .config-groups, .metric-grid, .kicker-grid { grid-template-columns: 1fr; }
+      .account-list { max-height: none; }
+      table { min-width: 720px; }
+    }
+  </style>
+</head>
+<body>
+  <button id="themeToggleBtn" class="theme-toggle-btn secondary" type="button" onclick="toggleTheme()">☀ 明亮</button>
+  <div id="loginScreen" class="auth-shell">
+    <div class="auth-card">
+      <div class="brand-mark">U2</div>
+      <span class="eyebrow">premium control center</span>
+      <h1>umans2api 控制台</h1>
+      <p>把当前网关升级成一块真正可运营的 AI 账号控制面：更强的状态总览、更清晰的账号池工作流、更稳定的保活与轮询监控。</p>
+      <label for="loginToken">管理令牌</label>
+      <input id="loginToken" type="password" placeholder="请输入管理令牌" aria-label="管理令牌" autocomplete="current-password">
+      <div class="action-row" style="margin-top:18px; justify-content:flex-start;">
+        <button onclick="login()">进入控制台</button>
+      </div>
+      <div class="auth-note"><span class="dot"></span><span id="loginMsg">默认与当前代理 API Key 相同，后续可在配置管理中独立维护。</span></div>
+    </div>
+  </div>
+
+  <div id="appShell" class="app-shell hidden">
+    <aside class="sidebar">
+      <div class="sidebar-head">
+        <div class="brand-mark" style="margin-bottom:12px;">U2</div>
+        <span class="eyebrow">umans.ai gateway</span>
+        <h1>Control Center</h1>
+        <p>聚焦账号池、保活、轮询与日志，让网关更像稳定产品，而不是脚本页。</p>
+      </div>
+
+      <nav class="nav-group">
+        <button class="nav-btn active" data-view="overview" onclick="switchView('overview')">
+          <span class="nav-icon">◉</span>
+          <span class="nav-copy"><strong>概览</strong><span>系统状态与重点动作</span></span>
+        </button>
+        <button class="nav-btn" data-view="accounts" onclick="switchView('accounts')">
+          <span class="nav-icon">◎</span>
+          <span class="nav-copy"><strong>账号池</strong><span>列表、详情、批量操作</span></span>
+        </button>
+        <button class="nav-btn" data-view="register" onclick="switchView('register')">
+          <span class="nav-icon">✚</span>
+          <span class="nav-copy"><strong>注册中心</strong><span>MoeMail、SSE、自动补号</span></span>
+        </button>
+        <button class="nav-btn" data-view="keepalive" onclick="switchView('keepalive')">
+          <span class="nav-icon">↻</span>
+          <span class="nav-copy"><strong>保活监控</strong><span>session 检测与续期兜底</span></span>
+        </button>
+        <button class="nav-btn" data-view="logs" onclick="switchView('logs')">
+          <span class="nav-icon">≡</span>
+          <span class="nav-copy"><strong>请求日志</strong><span>查看命中账号与异常</span></span>
+        </button>
+        <button class="nav-btn" data-view="config" onclick="switchView('config')">
+          <span class="nav-icon">⚙</span>
+          <span class="nav-copy"><strong>配置</strong><span>鉴权、调度、保活策略</span></span>
+        </button>
+        <button class="nav-btn" data-view="chat" onclick="switchView('chat')">
+          <span class="nav-icon">✦</span>
+          <span class="nav-copy"><strong>调试</strong><span>直接验证 Anthropic / OpenAI</span></span>
+        </button>
+      </nav>
+
+      <div class="sidebar-foot">
+        <div class="eyebrow">design mode</div>
+        当前版本强调产品级质感：强层级、少卡片、稳定状态感。后续所有模块都从“控制中心”视角继续迭代。
+      </div>
+    </aside>
+
+    <main class="workspace">
+      <header class="topbar">
+        <div>
+          <span class="eyebrow">live operations</span>
+          <h2 id="viewTitle">概览</h2>
+          <p id="viewSubtitle">首屏优先建立信任感：服务是否在线、账号池是否稳定、最近请求是否正常，一屏内给出答案。</p>
+        </div>
+        <div class="topbar-actions">
+          <div id="topStatus" class="status-inline"></div>
+          <div class="action-row">
+            <button class="secondary" onclick="loadAll()">全量刷新</button>
+            <button class="ghost" onclick="switchView('chat')">快速调试</button>
+          </div>
+        </div>
+      </header>
+
+      <div class="workspace-scroll">
+        <section id="view-overview" class="view active">
+          <div class="hero-grid">
+            <div class="hero-panel">
+              <span class="eyebrow">system confidence</span>
+              <h3>把这块面板做成真正能信任的控制中心。</h3>
+              <p>这里优先展示系统是否稳定、账号池是否健康、最近请求是否可信。重点动作不再埋在表单里，而是直接出现在主视图，确保一眼能知道下一步该做什么。</p>
+              <div class="hero-actions">
+                <button onclick="switchView('accounts')">进入账号池</button>
+                <button class="secondary" onclick="switchView('keepalive')">查看保活</button>
+                <button class="secondary" onclick="switchView('chat')">做一次调试</button>
+              </div>
+            </div>
+            <div class="hero-side">
+              <div class="surface compact">
+                <div class="surface-header">
+                  <div>
+                    <span class="eyebrow">runtime</span>
+                    <h3>运行基线</h3>
+                    <p>当前服务、上游与数据库状态。</p>
+                  </div>
+                </div>
+                <div id="runtimeMini" class="mini-stack"></div>
+              </div>
+              <div class="surface compact">
+                <div class="surface-header">
+                  <div>
+                    <span class="eyebrow">latest movement</span>
+                    <h3>即时摘要</h3>
+                    <p>最近一次请求与保活动作的直观摘要。</p>
+                  </div>
+                </div>
+                <div id="overviewHighlights" class="mini-stack"></div>
+              </div>
+            </div>
+          </div>
+
+          <div id="overviewStats" class="metric-grid"></div>
+
+          <div class="kicker-grid">
+            <div class="surface">
+              <div class="surface-header">
+                <div>
+                  <span class="eyebrow">account health</span>
+                  <h3>账号池快照</h3>
+                  <p>把健康、即将过期和近期错误统一浓缩在这里，先看池子是否稳定。</p>
+                </div>
+                <button class="secondary" onclick="switchView('accounts')">管理账号</button>
+              </div>
+              <div id="overviewAccounts" class="list-clean"></div>
+            </div>
+
+            <div class="surface">
+              <div class="surface-header">
+                <div>
+                  <span class="eyebrow">recent traffic</span>
+                  <h3>最近请求</h3>
+                  <p>快速感知是否都命中了正确账号、是否有异常抬头。</p>
+                </div>
+                <button class="secondary" onclick="switchView('logs')">打开日志</button>
+              </div>
+              <div id="overviewLogs" class="list-clean"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="view-accounts" class="view">
+          <div class="surface">
+            <div class="surface-header">
+              <div>
+                <span class="eyebrow">account pool</span>
+                <h3>账号池工作台</h3>
+                <p>左侧看池子状态，右侧处理新增和编辑。把“资源列表”和“编辑动作”拆开，避免一页里全是挤在一起的表单。</p>
+              </div>
+              <div class="toolbar">
+                <button class="secondary" onclick="batchAction('enable')">批量启用</button>
+                <button class="secondary" onclick="batchAction('disable')">批量禁用</button>
+                <button class="secondary" onclick="batchAction('test-session')">批量测 session</button>
+                <button class="secondary" onclick="batchAction('keepalive')">批量保活</button>
+                <button class="danger" onclick="batchAction('delete')">批量删除</button>
+                <button class="ghost" onclick="startCreateAccount()">新增账号</button>
+              </div>
+            </div>
+            <div class="account-layout">
+              <div class="surface compact">
+                <div class="surface-header">
+                  <div>
+                    <span class="eyebrow">pool list</span>
+                    <h4>账号列表</h4>
+                    <p>当前已选 <strong id="selectedCount">0</strong> 个账号。点击行直接进入右侧详情编辑。</p>
+                  </div>
+                  <div class="toolbar">
+                    <label class="chip" for="selectAllAccounts" style="cursor:pointer;"><input id="selectAllAccounts" type="checkbox" aria-label="全选账号" style="width:16px;height:16px;accent-color:var(--accent);" onchange="toggleSelectAll(this.checked)">全选</label>
+                  </div>
+                </div>
+                <div id="accountList" class="account-list"></div>
+              </div>
+
+              <div class="surface">
+                <div class="surface-header">
+                  <div>
+                    <span class="eyebrow" id="editorMode">create mode</span>
+                    <h4 id="editorTitle">新增账号</h4>
+                    <p id="editHint">当前是新增模式。选中左侧账号后，右侧会切到编辑工作区。</p>
+                  </div>
+                </div>
+
+                <div class="editor-stack">
+                  <div class="field-grid">
+                    <div>
+                      <label for="accName">账号名称</label>
+                      <input id="accName" placeholder="例如：主账号 1" aria-label="账号名称" autocomplete="off">
+                    </div>
+                    <div>
+                      <label for="accEmail">邮箱</label>
+                      <input id="accEmail" placeholder="可选" aria-label="邮箱" autocomplete="email">
+                    </div>
+                    <div>
+                      <label for="accPrefix">模型前缀</label>
+                      <input id="accPrefix" value="umans-" aria-label="模型前缀" autocomplete="off">
+                    </div>
+                    <div>
+                      <label for="accEnabled">启用状态</label>
+                      <select id="accEnabled" aria-label="启用状态">
+                        <option value="1">启用</option>
+                        <option value="0">禁用</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label for="accPassword">密码</label>
+                      <input id="accPassword" type="password" placeholder="新增可填；编辑留空则不改" aria-label="密码" autocomplete="new-password">
+                    </div>
+                  </div>
+
+                  <div>
+                    <label for="accCookies">Cookies JSON</label>
+                    <textarea id="accCookies" placeholder='{"__Secure-authjs.session-token":"...","__Host-authjs.csrf-token":"..."}' aria-label="Cookies JSON"></textarea>
+                  </div>
+
+                  <div class="editor-actions">
+                    <button id="accountSubmitBtn" onclick="submitAccount()">新增账号</button>
+                    <button id="accountCancelBtn" class="secondary hidden" onclick="cancelEdit()">取消编辑</button>
+                    <button id="accountTestBtn" class="secondary hidden" onclick="triggerSelectedAction('test')">测试 session</button>
+                    <button id="accountKeepaliveBtn" class="secondary hidden" onclick="triggerSelectedAction('keepalive')">立即保活</button>
+                    <button id="accountReloginBtn" class="secondary hidden" onclick="triggerSelectedAction('relogin')">重登拿 Cookie</button>
+                  </div>
+
+                  <div class="surface compact" style="padding:16px;">
+                    <div class="surface-header" style="margin-bottom:12px;">
+                      <div>
+                        <span class="eyebrow">selected insight</span>
+                        <h4 style="margin-bottom:2px;">当前选中账号摘要</h4>
+                        <p>帮助你在编辑时快速确认状态与风险。</p>
+                      </div>
+                    </div>
+                    <div id="accountInsight" class="kv-grid"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="view-register" class="view">
+          <div class="surface">
+            <div class="surface-header">
+              <div>
+                <span class="eyebrow">registration center</span>
+                <h3>注册中心</h3>
+                <p>把 MoeMail 配置健康、手动注册任务、SSE 实时日志和后台自动补号集中到一页里。</p>
+              </div>
+              <div class="toolbar">
+                <button onclick="startRegisterTask()">启动注册</button>
+                <button class="secondary" onclick="stopRegisterTask()">停止任务</button>
+              </div>
+            </div>
+            <div id="registerHealthCards" class="metric-grid"></div>
+          </div>
+
+          <div class="surface">
+            <div class="surface-header">
+              <div>
+                <span class="eyebrow">manual task</span>
+                <h3>手动注册任务</h3>
+                <p>visible 只允许 1 worker；headless 最多 2 workers。当前任务会在页面刷新后自动尝试续接。</p>
+              </div>
+            </div>
+            <div class="field-grid">
+              <div>
+                <label for="regCount">注册数量</label>
+                <input id="regCount" type="number" min="1" max="20" value="1" aria-label="注册数量">
+              </div>
+              <div>
+                <label for="regWorkers">Workers</label>
+                <input id="regWorkers" type="number" min="1" max="2" value="1" aria-label="Workers">
+              </div>
+              <div>
+                <label for="regBrowserMode">浏览器模式</label>
+                <select id="regBrowserMode" aria-label="浏览器模式">
+                  <option value="visible">visible</option>
+                  <option value="headless">headless</option>
+                </select>
+              </div>
+              <div>
+                <label for="regTaskTarget">当前任务</label>
+                <input id="regTaskTarget" placeholder="尚未启动" aria-label="当前任务" readonly>
+              </div>
+            </div>
+            <div id="registerTaskSummary" class="kv-grid" style="margin-top:18px;"></div>
+          </div>
+
+          <div class="log-shell">
+            <div class="surface compact">
+              <div class="surface-header">
+                <div>
+                  <span class="eyebrow">task log</span>
+                  <h4>实时日志</h4>
+                  <p>state / log / result / done 都在这里汇总。</p>
+                </div>
+              </div>
+              <div id="registerLogs" class="result-panel mono" style="min-height:280px;"></div>
+            </div>
+            <div class="surface compact">
+              <div class="surface-header">
+                <div>
+                  <span class="eyebrow">recent result</span>
+                  <h4>最近注册结果</h4>
+                  <p>展示账号邮箱、来源和首轮验活结果。</p>
+                </div>
+              </div>
+              <div id="registerResults" class="result-panel mono" style="min-height:280px;"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="view-keepalive" class="view">
+          <div class="surface">
+            <div class="surface-header">
+              <div>
+                <span class="eyebrow">session lifecycle</span>
+                <h3>保活监控</h3>
+                <p>先做 session 检测，再按需要续期；如果普通页面刷新不够，再由轻量 chat 请求做兜底。</p>
+              </div>
+              <div class="toolbar">
+                <button onclick="runKeepaliveAll()">立即跑一轮保活</button>
+                <button class="secondary" onclick="batchAction('keepalive')">批量保活</button>
+              </div>
+            </div>
+            <div id="keepaliveStats" class="metric-grid"></div>
+          </div>
+
+          <div class="surface">
+            <div class="surface-header">
+              <div>
+                <span class="eyebrow">account watchlist</span>
+                <h3>保活状态表</h3>
+                <p>把 expires、最近检测、最近 keepalive 与最近错误集中在一张表里。</p>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>账号</th>
+                    <th>状态</th>
+                    <th>Plan</th>
+                    <th>Expires</th>
+                    <th>最近检测</th>
+                    <th>最近保活</th>
+                    <th>最近重登</th>
+                    <th>最近错误</th>
+                    <th>动作</th>
+                  </tr>
+                </thead>
+                <tbody id="keepaliveRows"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="surface compact">
+            <div class="surface-header">
+              <div>
+                <span class="eyebrow">last run</span>
+                <h3>最近一次保活结果</h3>
+                <p>这里展示单次执行的结构化结果，便于快速判断成功率和异常账号。</p>
+              </div>
+            </div>
+            <div id="keepaliveResult" class="mono"></div>
+          </div>
+        </section>
+
+        <section id="view-logs" class="view">
+          <div class="surface">
+            <div class="surface-header">
+              <div>
+                <span class="eyebrow">request telemetry</span>
+                <h3>请求日志</h3>
+                <p>从“列表 + 明细”的方式看网关轨迹，而不是一张纯表格。这样更像正式产品日志台。</p>
+              </div>
+              <div class="toolbar">
+                <button class="secondary" onclick="loadLogs()">刷新日志</button>
+              </div>
+            </div>
+            <div id="logOverviewStats" class="metric-grid" style="margin-bottom:18px;"></div>
+            <div class="log-shell">
+              <div class="surface compact">
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>时间</th>
+                        <th>协议</th>
+                        <th>路径</th>
+                        <th>账号</th>
+                        <th>结果</th>
+                        <th>耗时</th>
+                      </tr>
+                    </thead>
+                    <tbody id="logRows"></tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="surface compact">
+                <div class="surface-header">
+                  <div>
+                    <span class="eyebrow">log detail</span>
+                    <h4>日志详情</h4>
+                    <p>选中左侧一条日志后，这里展示完整上下文。</p>
+                  </div>
+                </div>
+                <div id="logDetailMeta" class="kv-grid"></div>
+                <div id="logDetailTimeline" class="result-panel mono" style="margin-top:16px; min-height: 220px;"></div>
+                <details class="chat-detail" open>
+                  <summary>请求 / 响应摘要</summary>
+                  <div id="logDetailBody" class="result-panel mono chat-side-panel"></div>
+                </details>
+                <details class="chat-detail">
+                  <summary>原始 detail JSON</summary>
+                  <div id="logDetailRaw" class="result-panel mono chat-side-panel"></div>
+                </details>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="view-config" class="view">
+          <div class="surface">
+            <div class="surface-header">
+              <div>
+                <span class="eyebrow">settings</span>
+                <h3>配置管理</h3>
+                <p>按产品设置页方式重组：鉴权、调度、保活分组，避免把所有输入都堆在一个平面上。</p>
+              </div>
+              <button onclick="saveConfig()">保存配置</button>
+            </div>
+            <div class="config-groups">
+              <div class="config-group">
+                <div>
+                  <span class="eyebrow">security</span>
+                  <h3>鉴权设置</h3>
+                  <p>面板和代理请求都从这里收口，保持清晰边界。</p>
+                </div>
+                <div>
+                  <label for="cfgApiKey">代理 API Key</label>
+                  <input id="cfgApiKey" aria-label="代理 API Key" autocomplete="off">
+                </div>
+                <div>
+                  <label for="cfgAdminToken">管理令牌</label>
+                  <input id="cfgAdminToken" aria-label="管理令牌" autocomplete="off">
+                </div>
+                <div>
+                  <label for="cfgDefaultModel">默认模型</label>
+                  <input id="cfgDefaultModel" aria-label="默认模型" autocomplete="off">
+                </div>
+              </div>
+
+              <div class="config-group">
+                <div>
+                  <span class="eyebrow">dispatch</span>
+                  <h3>调度设置</h3>
+                  <p>控制失败阈值、并发 inflight 和冷却窗口，让账号池切换更平稳。</p>
+                </div>
+                <div>
+                  <label for="cfgFailThreshold">失败阈值</label>
+                  <input id="cfgFailThreshold" type="number" aria-label="失败阈值">
+                </div>
+                <div>
+                  <label for="cfgMaxInflight">最大并发 inflight</label>
+                  <input id="cfgMaxInflight" type="number" aria-label="最大并发 inflight">
+                </div>
+                <div>
+                  <label for="cfgCooldownSeconds">冷却秒数</label>
+                  <input id="cfgCooldownSeconds" type="number" aria-label="冷却秒数">
+                </div>
+              </div>
+
+              <div class="config-group">
+                <div>
+                  <span class="eyebrow">keepalive</span>
+                  <h3>保活设置</h3>
+                  <p>优先控制 session 检测节奏，再决定续期阈值和 chat 兜底是否打开。</p>
+                </div>
+                <div>
+                  <label for="cfgKeepaliveInterval">保活间隔（秒）</label>
+                  <input id="cfgKeepaliveInterval" type="number" aria-label="保活间隔秒数">
+                </div>
+                <div>
+                  <label for="cfgKeepaliveExpiring">续期阈值（分钟）</label>
+                  <input id="cfgKeepaliveExpiring" type="number" aria-label="续期阈值分钟">
+                </div>
+                <div>
+                  <label for="cfgKeepaliveChatFallback">保活 chat 兜底</label>
+                  <select id="cfgKeepaliveChatFallback" aria-label="保活 chat 兜底">
+                    <option value="1">开启</option>
+                    <option value="0">关闭</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="config-group">
+                <div>
+                  <span class="eyebrow">registration</span>
+                  <h3>注册 / 补号 / 重登</h3>
+                  <p>这里统一控制 MoeMail、自动补号和 cookie 失效后的自动重登。</p>
+                </div>
+                <div class="field-grid">
+                  <div>
+                    <label for="cfgAutoRegisterEnabled">自动补号</label>
+                    <select id="cfgAutoRegisterEnabled">
+                      <option value="1">开启</option>
+                      <option value="0">关闭</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label for="cfgAutoRegisterMinActive">最小 active</label>
+                    <input id="cfgAutoRegisterMinActive" type="number" min="0">
+                  </div>
+                  <div>
+                    <label for="cfgAutoRegisterBatch">补号批次</label>
+                    <input id="cfgAutoRegisterBatch" type="number" min="1">
+                  </div>
+                  <div>
+                    <label for="cfgAutoRegisterWorkers">后台 Workers</label>
+                    <input id="cfgAutoRegisterWorkers" type="number" min="1" max="2">
+                  </div>
+                  <div>
+                    <label for="cfgAutoRegisterPassword">默认注册密码</label>
+                    <input id="cfgAutoRegisterPassword" type="text" placeholder="为空则自动随机生成">
+                  </div>
+                  <div>
+                    <label for="cfgAutoRegisterManualMode">手动浏览器模式</label>
+                    <select id="cfgAutoRegisterManualMode">
+                      <option value="visible">visible</option>
+                      <option value="headless">headless</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label for="cfgAutoRegisterBackgroundMode">后台浏览器模式</label>
+                    <select id="cfgAutoRegisterBackgroundMode">
+                      <option value="headless">headless</option>
+                      <option value="visible">visible</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label for="cfgAutoReloginEnabled">自动重登</label>
+                    <select id="cfgAutoReloginEnabled">
+                      <option value="1">开启</option>
+                      <option value="0">关闭</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label for="cfgRegisterProxy">注册代理</label>
+                    <input id="cfgRegisterProxy" placeholder="http://127.0.0.1:7890">
+                  </div>
+                  <div>
+                    <label for="cfgMailUseProxy">邮件走代理</label>
+                    <select id="cfgMailUseProxy">
+                      <option value="1">开启</option>
+                      <option value="0">关闭</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label for="cfgMailProviderDefault">默认邮箱渠道</label>
+                    <input id="cfgMailProviderDefault" placeholder="moemail">
+                  </div>
+                  <div>
+                    <label for="cfgMoemailApiKey">MoeMail API Key</label>
+                    <input id="cfgMoemailApiKey" placeholder="可留空，优先使用 channels json">
+                  </div>
+                  <div>
+                    <label for="cfgMoemailApiBase">MoeMail API Base</label>
+                    <input id="cfgMoemailApiBase" placeholder="https://...">
+                  </div>
+                </div>
+                <div style="margin-top:18px;">
+                  <label for="cfgMoemailChannelsJson">MOEMAIL_CHANNELS_JSON</label>
+                  <textarea id="cfgMoemailChannelsJson" placeholder='[{\"id\":\"moe-1\",\"name\":\"Moe 1\",\"enabled\":true,\"api_key\":\"...\",\"api_base\":\"https://...\"}]'></textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="view-chat" class="view">
+          <div class="surface">
+            <div class="surface-header">
+              <div>
+                <span class="eyebrow">live validation</span>
+                <h3>对话调试台</h3>
+                <p>把单次请求验证升级成真正的多轮对话调试：协议切换、流式/非流、思考链、工具调用和原始 SSE 都放在一页里。</p>
+              </div>
+            </div>
+            <div class="chat-toolbar">
+              <div class="field-grid">
+                <div>
+                  <label for="chatProtocol">协议</label>
+                  <select id="chatProtocol" aria-label="调试协议" onchange="onChatProtocolChange()">
+                    <option value="messages">Anthropic /v1/messages</option>
+                    <option value="chat">OpenAI /v1/chat/completions</option>
+                    <option value="responses">OpenAI /v1/responses</option>
+                  </select>
+                </div>
+                <div>
+                  <label for="chatModel">模型</label>
+                  <select id="chatModel" aria-label="调试模型"></select>
+                </div>
+                <div>
+                  <label for="chatStream">传输模式</label>
+                  <select id="chatStream" aria-label="传输模式" onchange="renderChat()">
+                    <option value="1">流式</option>
+                    <option value="0">非流式</option>
+                  </select>
+                </div>
+                <div>
+                  <label for="chatThinking">思考链展示</label>
+                  <select id="chatThinking" aria-label="思考链展示" onchange="renderChat()">
+                    <option value="0">关闭</option>
+                    <option value="1">开启</option>
+                  </select>
+                </div>
+              </div>
+              <div class="field-grid" style="margin-top:16px;">
+                <div>
+                  <label for="chatSystem">系统提示词</label>
+                  <textarea id="chatSystem" aria-label="系统提示词" placeholder="可选。这里只写你想补充的系统提示词。"></textarea>
+                </div>
+                <div>
+                  <label for="chatTools">Tools JSON</label>
+                  <textarea id="chatTools" aria-label="Tools JSON" placeholder='可选，例如：[{"name":"Read","description":"读取文件","input_schema":{"type":"object","properties":{"file_path":{"type":"string"}}}}]'></textarea>
+                </div>
+              </div>
+              <div class="editor-actions" style="margin-top: 16px;">
+                <button onclick="sendConversation()">发送</button>
+                <button id="chatStopBtn" class="secondary hidden" onclick="stopConversation()">停止生成</button>
+                <button class="secondary" onclick="clearConversation()">清空对话</button>
+              </div>
+            </div>
+            <div class="chat-console">
+              <div class="surface compact">
+                <div class="field-grid">
+                  <div>
+                    <label for="chatInput">本轮输入</label>
+                    <textarea id="chatInput" aria-label="本轮输入" placeholder="输入要验证的内容。支持多轮连续发送。">你好，请先简单介绍你自己，然后只回复一句当前状态。</textarea>
+                  </div>
+                  <div>
+                    <label>当前运行状态</label>
+                    <div id="chatStatusNotice" class="footer-note" style="margin-top:0;">尚未开始对话。默认建议先走流式，快速观察首包、思考链和工具调用。</div>
+                  </div>
+                </div>
+                <div id="chatTranscript" class="chat-transcript"></div>
+                <div class="footer-note">左侧负责真实对话体验，右侧负责命中账号、思考链、工具调用与原始 SSE/JSON 排障，不再在“体验”和“运维”之间来回切页。</div>
+              </div>
+              <div class="surface compact">
+                <div class="surface-header">
+                  <div>
+                    <span class="eyebrow">runtime</span>
+                    <h4>运行态侧栏</h4>
+                    <p>记录本次命中账号、思考链、工具调用和原始响应。</p>
+                  </div>
+                </div>
+                <div id="chatRequestMeta" class="kv-grid"></div>
+                <details class="chat-detail" open>
+                  <summary>思考链</summary>
+                  <div id="chatReasoning" class="result-panel mono chat-side-panel">当前未返回思考链。</div>
+                </details>
+                <details class="chat-detail" open>
+                  <summary>工具调用</summary>
+                  <div id="chatToolCalls" class="result-panel mono chat-side-panel">当前没有工具调用。</div>
+                </details>
+                <div class="surface compact" style="margin-top:14px; padding:16px;">
+                  <div class="surface-header" style="margin-bottom:12px;">
+                    <div>
+                      <span class="eyebrow">tool loop</span>
+                      <h4>工具结果回填</h4>
+                      <p>当模型发出 tool call 后，可在这里粘贴 tool_result 并继续下一轮。</p>
+                    </div>
+                  </div>
+                  <div class="field-grid">
+                    <div>
+                      <label for="toolResultTarget">当前目标工具</label>
+                      <input id="toolResultTarget" aria-label="当前目标工具" readonly placeholder="先从上方工具调用里选择一条">
+                    </div>
+                    <div>
+                      <label for="toolResultMode">回填方式</label>
+                      <select id="toolResultMode" aria-label="回填方式">
+                        <option value="continue">回填并继续</option>
+                        <option value="append">只追加到历史</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div style="margin-top:14px;">
+                    <label for="toolResultInput">tool_result 内容</label>
+                    <textarea id="toolResultInput" aria-label="tool_result 内容" placeholder="可直接粘贴 JSON、纯文本，或先点“一键填 pong”再继续。"></textarea>
+                  </div>
+                  <div class="editor-actions" style="margin-top:14px;">
+                    <button class="secondary" onclick="fillToolResultTemplate()">一键填 pong</button>
+                    <button onclick="submitToolResult()">回填结果</button>
+                  </div>
+                </div>
+                <details class="chat-detail">
+                  <summary>原始响应 / SSE</summary>
+                  <div id="chatRaw" class="result-panel mono chat-side-panel">发送后会在这里看到原始 JSON、SSE chunk 和协议事件。</div>
+                </details>
+                <div class="surface compact" style="margin-top:16px; padding:16px;">
+                  <div class="surface-header" style="margin-bottom:12px;">
+                    <div>
+                      <span class="eyebrow">catalog</span>
+                      <h4>模型目录</h4>
+                    </div>
+                  </div>
+                  <div id="modelList" class="model-list"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const appState = {
+      activeView: 'overview',
+      theme: 'dark',
+      editingAccountId: null,
+      selectedAccountId: null,
+      selectedIds: new Set(),
+      selectedLogId: null,
+      stats: null,
+      accounts: [],
+      logs: [],
+      logDetails: {},
+      config: null,
+      runtime: null,
+      models: [],
+      autoRegisterConfig: null,
+      registerTask: null,
+      registerLogs: [],
+      registerResults: [],
+      registerEventSource: null,
+      chatProtocol: 'messages',
+      chatStream: true,
+      chatShowThinking: false,
+      chatHistory: [],
+      chatBusy: false,
+      chatAbortController: null,
+      chatRawEvents: [],
+      chatReasoning: '',
+      chatToolCalls: [],
+      chatPendingToolCall: null,
+      chatMeta: null,
+      chatPreviousResponseId: null
+    };
+
+    function applyTheme(theme) {
+      appState.theme = theme === 'light' ? 'light' : 'dark';
+      document.body.dataset.theme = appState.theme;
+      const toggle = document.getElementById('themeToggleBtn');
+      if (toggle) {
+        const isDark = appState.theme === 'dark';
+        toggle.textContent = isDark ? '☀ 明亮' : '☾ 暗色';
+        toggle.title = isDark ? '切换到明亮主题' : '切换到暗色主题';
+        toggle.setAttribute('aria-label', toggle.title);
+      }
+    }
+
+    function initTheme() {
+      let saved = 'dark';
+      try {
+        saved = localStorage.getItem('umans2api-theme') || 'dark';
+      } catch {}
+      applyTheme(saved);
+    }
+
+    function toggleTheme() {
+      const nextTheme = appState.theme === 'dark' ? 'light' : 'dark';
+      applyTheme(nextTheme);
+      try {
+        localStorage.setItem('umans2api-theme', nextTheme);
+      } catch {}
+    }
+
+    const viewMeta = {
+      overview: {
+        title: '概览',
+        subtitle: '首屏优先建立系统信任感：服务在线、账号池健康、最近请求和保活情况一屏可见。'
+      },
+      accounts: {
+        title: '账号池',
+        subtitle: '把账号列表、编辑详情和批量操作拆开，形成更像正式产品的工作台。'
+      },
+      register: {
+        title: '注册中心',
+        subtitle: '在一页里完成 MoeMail 健康检查、手动注册、SSE 任务追踪和自动补号观察。'
+      },
+      keepalive: {
+        title: '保活监控',
+        subtitle: '优先看 session 检测结果，再决定是否需要页面续期或 chat 兜底续期。'
+      },
+      logs: {
+        title: '请求日志',
+        subtitle: '不再只是工程表格，而是带明细的请求轨迹面板。'
+      },
+      config: {
+        title: '配置管理',
+        subtitle: '按产品设置页的方式把鉴权、调度与保活分开，减少认知负担。'
+      },
+      chat: {
+        title: '对话调试台',
+        subtitle: '在一页内完成多轮对话、流式/非流、思考链、工具调用和原始响应排障。'
+      }
+    };
+
+    async function api(path, options = {}) {
+      const opts = Object.assign({credentials: 'same-origin'}, options);
+      const response = await fetch(path, opts);
+      const text = await response.text();
+      let data = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        data = {raw: text};
+      }
+      if (!response.ok) {
+        throw new Error(data.error?.message || data.message || data.raw || `HTTP ${response.status}`);
+      }
+      return data;
+    }
+
+    function esc(value) {
+      return (value ?? '').toString()
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;');
+    }
+
+    function fmtTs(value) {
+      if (!value) return '-';
+      const date = new Date(value * 1000);
+      return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
+    }
+
+    function statusClass(status) {
+      return `tone-${status || 'healthy'}`;
+    }
+
+    function updateTopBar() {
+      const meta = viewMeta[appState.activeView] || viewMeta.overview;
+      document.getElementById('viewTitle').textContent = meta.title;
+      document.getElementById('viewSubtitle').textContent = meta.subtitle;
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.view === appState.activeView);
+      });
+      document.querySelectorAll('.view').forEach(view => {
+        view.classList.toggle('active', view.id === `view-${appState.activeView}`);
+      });
+    }
+
+    function renderTopStatus() {
+      const el = document.getElementById('topStatus');
+      const stats = appState.stats || {};
+      const runtime = appState.runtime || {};
+      el.innerHTML = `
+        <span class="status-pill ${stats.expiring ? 'warn' : ''}"><span class="pulse"></span>服务在线 · ${esc(runtime.host || '0.0.0.0')}:${esc(runtime.port || '')}</span>
+        <span class="status-pill"><strong>${esc(stats.active ?? 0)}</strong> active</span>
+        <span class="status-pill"><strong>${esc(stats.healthy ?? 0)}</strong> healthy</span>
+        <span class="status-pill ${stats.expiring ? 'warn' : ''}"><strong>${esc(stats.expiring ?? 0)}</strong> expiring</span>
+      `;
+    }
+
+    function renderOverview() {
+      const stats = appState.stats || {};
+      const runtime = appState.runtime || {};
+      const config = appState.config || {};
+      const accounts = appState.accounts || [];
+      const logs = appState.logs || [];
+
+      document.getElementById('overviewStats').innerHTML = [
+        {label: '总账号', value: stats.total ?? 0, note: '当前已纳入池子的账号数量'},
+        {label: '启用中', value: stats.enabled ?? 0, note: '允许参与轮询与保活'},
+        {label: 'Healthy', value: stats.healthy ?? 0, note: '最近状态稳定可用'},
+        {label: 'Expiring', value: stats.expiring ?? 0, note: '需要更关注 session 续期'},
+        {label: 'Cooling', value: stats.cooling ?? 0, note: '最近失败偏多，正在冷却'},
+        {label: 'Inflight', value: stats.inflight ?? 0, note: '当前被请求占用的账号数'}
+      ].map(item => `
+        <div class="metric-card">
+          <div class="metric-label">${item.label}</div>
+          <div class="metric-value">${esc(item.value)}</div>
+          <div class="metric-note">${item.note}</div>
+        </div>
+      `).join('');
+
+      document.getElementById('runtimeMini').innerHTML = `
+        <div class="mini-row"><span>服务地址</span><strong>${esc(runtime.host || '-')}:${esc(runtime.port || '-')}</strong></div>
+        <div class="mini-row"><span>默认模型</span><strong>${esc(runtime.default_model || '-')}</strong></div>
+        <div class="mini-row"><span>上游站点</span><strong>${esc(runtime.site_base_url || '-')}</strong></div>
+        <div class="mini-row"><span>数据库</span><strong>${esc((runtime.db_path || '').split('/').pop() || '-')}</strong></div>
+      `;
+
+      const latestLog = logs[0];
+      const latestAccount = accounts.find(item => item.status === 'expiring') || accounts[0];
+      document.getElementById('overviewHighlights').innerHTML = `
+        <div class="mini-row"><span>最近请求</span><strong>${latestLog ? esc(latestLog.path) + ' · ' + (latestLog.ok ? '成功' : '失败') : '暂无'}</strong></div>
+        <div class="mini-row"><span>最近命中账号</span><strong>${latestLog ? esc(latestLog.account_name || latestLog.account_id || '-') : '暂无'}</strong></div>
+        <div class="mini-row"><span>重点关注账号</span><strong>${latestAccount ? esc(latestAccount.name || latestAccount.id.slice(0, 8)) : '暂无'}</strong></div>
+        <div class="mini-row"><span>保活兜底</span><strong>${config.keepalive_chat_fallback_enabled ? '已开启' : '已关闭'}</strong></div>
+        <div class="mini-row"><span>自动补号</span><strong>${config.AUTO_REGISTER_ENABLED ? '已开启' : '已关闭'}</strong></div>
+      `;
+
+      document.getElementById('overviewAccounts').innerHTML = accounts.slice(0, 4).map(acc => `
+        <div class="list-item">
+          <div class="list-item-top">
+            <strong>${esc(acc.name || acc.id.slice(0, 8))}</strong>
+            <span class="chip ${statusClass(acc.status)}">${esc(acc.status || 'healthy')}</span>
+          </div>
+          <div class="meta-line">Plan：${esc(acc.plan || '-')} · Expires：${esc(acc.session_expires_at || '-')}</div>
+          <small>${esc(acc.last_error || '最近没有错误，状态稳定。')}</small>
+        </div>
+      `).join('') || '<div class="list-item"><small>暂无账号，请先到账号池页添加。</small></div>';
+
+      document.getElementById('overviewLogs').innerHTML = logs.slice(0, 4).map(log => `
+        <div class="list-item">
+          <div class="list-item-top">
+            <strong>${esc(log.path || '-')}</strong>
+            <span class="chip ${log.ok ? 'tone-healthy' : 'tone-disabled'}">${log.ok ? '成功' : '失败'} · ${esc(log.status_code)}</span>
+          </div>
+          <div class="meta-line">账号：${esc(log.account_name || log.account_id || '-')} · 耗时：${esc(log.duration_ms)} ms</div>
+          <small>${esc(log.error || '无错误，链路正常。')}</small>
+        </div>
+      `).join('') || '<div class="list-item"><small>暂无请求日志，先去调试区发一次请求。</small></div>';
+    }
+
+    function renderAccounts() {
+      const list = document.getElementById('accountList');
+      const selectedId = appState.selectedAccountId;
+      list.innerHTML = appState.accounts.map(acc => `
+        <div class="account-row ${selectedId === acc.id ? 'active' : ''}" onclick="selectAccount('${acc.id}')">
+          <div class="account-row-top">
+            <div class="account-row-main">
+              <div class="check-wrap">
+                <input class="account-check" type="checkbox" value="${acc.id}" aria-label="选择账号 ${esc(acc.name || acc.id.slice(0, 8))}" ${appState.selectedIds.has(acc.id) ? 'checked' : ''}
+                  onclick="event.stopPropagation()" onchange="toggleSelected('${acc.id}', this.checked)">
+              </div>
+              <div class="account-title">
+                <strong>${esc(acc.name || acc.id.slice(0, 8))}</strong>
+                <div class="account-sub">
+                  <span>${esc(acc.email || '未填写邮箱')}</span>
+                  <span>Plan：${esc(acc.plan || '-')}</span>
+                </div>
+              </div>
+            </div>
+            <span class="chip ${statusClass(acc.status)}">${esc(acc.status || 'healthy')}</span>
+          </div>
+          <div class="account-row-bottom">
+            <div class="account-sub">
+              <span>Expires：${esc(acc.session_expires_at || '-')}</span>
+              <span>Failures：${esc(acc.failures ?? 0)}</span>
+              <span>Inflight：${esc(acc.inflight_count ?? 0)}</span>
+              <span>来源：${esc(acc.register_source || '-')}</span>
+              <span>凭据：${acc.has_password ? '已保存' : '未保存'}</span>
+            </div>
+            <span class="chip"><strong>${esc(acc.allowed_model_prefix || 'umans-')}</strong></span>
+          </div>
+        </div>
+      `).join('') || '<div class="list-item"><small>暂无账号，请在右侧先新增一个。</small></div>';
+      document.getElementById('selectedCount').textContent = String(appState.selectedIds.size);
+      const selectAll = document.getElementById('selectAllAccounts');
+      if (selectAll) {
+        const total = appState.accounts.length;
+        const selected = appState.selectedIds.size;
+        selectAll.checked = total > 0 && selected === total;
+        selectAll.indeterminate = selected > 0 && selected < total;
+      }
+      renderAccountEditor();
+    }
+
+    function renderAccountEditor() {
+      const selected = appState.accounts.find(acc => acc.id === appState.selectedAccountId) || null;
+      const isEditing = Boolean(appState.editingAccountId);
+      document.getElementById('editorMode').textContent = isEditing ? 'edit mode' : 'create mode';
+      document.getElementById('editorTitle').textContent = isEditing ? '编辑账号' : '新增账号';
+      document.getElementById('editHint').textContent = isEditing
+        ? `当前编辑：${selected?.name || appState.editingAccountId}`
+        : '当前是新增模式。选中左侧账号后，右侧会自动切换为编辑工作区。';
+      document.getElementById('accountSubmitBtn').textContent = isEditing ? '保存编辑' : '新增账号';
+      document.getElementById('accountCancelBtn').classList.toggle('hidden', !isEditing);
+      document.getElementById('accountTestBtn').classList.toggle('hidden', !selected);
+      document.getElementById('accountKeepaliveBtn').classList.toggle('hidden', !selected);
+      document.getElementById('accountReloginBtn').classList.toggle('hidden', !selected || !selected.has_password);
+      const insight = document.getElementById('accountInsight');
+      if (!selected) {
+        insight.innerHTML = `
+          <div class="kv-card"><div class="label">当前状态</div><div class="value">新增模式</div></div>
+          <div class="kv-card"><div class="label">建议</div><div class="value">可手动粘贴 cookies，也可通过注册中心自动生成账号。</div></div>
+        `;
+        return;
+      }
+      insight.innerHTML = `
+        <div class="kv-card"><div class="label">状态</div><div class="value ${statusClass(selected.status)}">${esc(selected.status)}</div></div>
+        <div class="kv-card"><div class="label">Plan</div><div class="value">${esc(selected.plan || '-')}</div></div>
+        <div class="kv-card"><div class="label">Expires</div><div class="value">${esc(selected.session_expires_at || '-')}</div></div>
+        <div class="kv-card"><div class="label">Cookie 摘要</div><div class="value">${esc(selected.cookie_preview || '-')}</div></div>
+        <div class="kv-card"><div class="label">注册来源</div><div class="value">${esc(selected.register_source || '-')}</div></div>
+        <div class="kv-card"><div class="label">凭据</div><div class="value">${selected.has_password ? '已保存，可自动重登' : '未保存'}</div></div>
+        <div class="kv-card"><div class="label">最近重登</div><div class="value">${selected.last_relogin_at ? fmtTs(selected.last_relogin_at) : '-'}</div></div>
+        <div class="kv-card"><div class="label">重登错误</div><div class="value">${esc(selected.last_relogin_error || '-')}</div></div>
+        <div class="kv-card"><div class="label">最近错误</div><div class="value">${esc(selected.last_error || '无')}</div></div>
+        <div class="kv-card"><div class="label">最近保活</div><div class="value">${selected.last_keepalive_at ? fmtTs(selected.last_keepalive_at) : '-'}</div></div>
+      `;
+    }
+
+    function renderRegister() {
+      const cfg = appState.autoRegisterConfig || {};
+      const task = appState.registerTask || cfg.current_task || null;
+      const active = appState.stats?.active ?? 0;
+      document.getElementById('registerHealthCards').innerHTML = [
+        {label: 'MoeMail', value: cfg.moemail_configured ? '已就绪' : '未就绪', note: `channels=${cfg.channels_enabled || 0}/${cfg.channels_total || 0}`},
+        {label: '浏览器依赖', value: cfg.browser_ready ? '已就绪' : '缺失', note: cfg.browser_error || 'playwright 可用'},
+        {label: '自动补号', value: cfg.auto_register_enabled ? '已开启' : '已关闭', note: `active=${active} / threshold=${cfg.min_active ?? 0}`},
+        {label: '自动重登', value: cfg.auto_relogin_enabled ? '已开启' : '已关闭', note: `后台模式=${cfg.background_browser_mode || 'headless'}`},
+      ].map(item => `
+        <div class="metric-card">
+          <div class="metric-label">${item.label}</div>
+          <div class="metric-value">${esc(item.value)}</div>
+          <div class="metric-note">${esc(item.note)}</div>
+        </div>
+      `).join('');
+
+      if (!document.activeElement || !['regCount', 'regWorkers'].includes(document.activeElement.id)) {
+        document.getElementById('regBrowserMode').value = task?.browser_mode || cfg.current_task?.browser_mode || cfg.manual_browser_modes?.[0] || 'visible';
+      }
+      document.getElementById('regTaskTarget').value = task ? `${task.id} · ${task.status}` : '尚未启动';
+      document.getElementById('registerTaskSummary').innerHTML = task ? `
+        <div class="kv-card"><div class="label">状态</div><div class="value">${esc(task.status || '-')}</div></div>
+        <div class="kv-card"><div class="label">数量</div><div class="value">${esc(task.success_count || 0)} / ${esc(task.requested || 0)}</div></div>
+        <div class="kv-card"><div class="label">失败</div><div class="value">${esc(task.failed_count || 0)}</div></div>
+        <div class="kv-card"><div class="label">Workers</div><div class="value">${esc(task.workers || 1)}</div></div>
+        <div class="kv-card"><div class="label">浏览器模式</div><div class="value">${esc(task.browser_mode || '-')}</div></div>
+        <div class="kv-card"><div class="label">停止请求</div><div class="value">${task.stop_requested ? '是' : '否'}</div></div>
+        <div class="kv-card"><div class="label">创建时间</div><div class="value">${task.created_at ? fmtTs(task.created_at) : '-'}</div></div>
+        <div class="kv-card"><div class="label">最近更新时间</div><div class="value">${task.updated_at ? fmtTs(task.updated_at) : '-'}</div></div>
+        <div class="kv-card"><div class="label">错误</div><div class="value">${esc(task.error || '-')}</div></div>
+      ` : '<div class="kv-card"><div class="label">当前状态</div><div class="value">暂无运行中的注册任务</div></div>';
+
+      document.getElementById('registerLogs').textContent = appState.registerLogs.length
+        ? appState.registerLogs.map(item => `[${new Date((item.ts || 0) * 1000).toLocaleTimeString()}] [${item.level}] ${item.message}`).join('\n')
+        : '暂无日志。';
+      document.getElementById('registerResults').textContent = appState.registerResults.length
+        ? appState.registerResults.map(item => JSON.stringify(item, null, 2)).join('\n\n')
+        : '暂无注册结果。';
+    }
+
+    function renderKeepalive() {
+      const config = appState.config || {};
+      document.getElementById('keepaliveStats').innerHTML = [
+        {label: '检测间隔', value: `${config.keepalive_interval_seconds || 900}s`, note: '后台 session 检测频率'},
+        {label: '续期阈值', value: `${config.keepalive_expiring_minutes || 20} min`, note: '接近过期时触发续期'},
+        {label: 'Chat 兜底', value: config.keepalive_chat_fallback_enabled ? 'On' : 'Off', note: '页面续期不够时使用'},
+        {label: 'Healthy', value: appState.stats?.healthy ?? 0, note: '当前健康账号数'}
+      ].map(item => `
+        <div class="metric-card">
+          <div class="metric-label">${item.label}</div>
+          <div class="metric-value">${esc(item.value)}</div>
+          <div class="metric-note">${item.note}</div>
+        </div>
+      `).join('');
+
+      document.getElementById('keepaliveRows').innerHTML = appState.accounts.map(acc => `
+        <tr>
+          <td>${esc(acc.name || acc.id.slice(0, 8))}</td>
+          <td><span class="chip ${statusClass(acc.status)}">${esc(acc.status || 'healthy')}</span></td>
+          <td>${esc(acc.plan || '-')}</td>
+          <td>${esc(acc.session_expires_at || '-')}</td>
+          <td>${acc.last_session_check_at ? fmtTs(acc.last_session_check_at) : '-'}</td>
+          <td>${acc.last_keepalive_at ? fmtTs(acc.last_keepalive_at) : '-'}</td>
+          <td>${acc.last_relogin_at ? fmtTs(acc.last_relogin_at) : '-'}</td>
+          <td>${esc(acc.last_error || '-')}</td>
+          <td>
+            <div class="toolbar">
+              <button class="secondary" onclick="testSession('${acc.id}')">测 session</button>
+              <button class="secondary" onclick="keepaliveOne('${acc.id}')">保活</button>
+              ${acc.has_password ? `<button class="secondary" onclick="reloginOne('${acc.id}')">重登</button>` : ''}
+            </div>
+          </td>
+        </tr>
+      `).join('') || '<tr><td colspan="9">暂无账号</td></tr>';
+    }
+
+    function renderLogs() {
+      const rows = document.getElementById('logRows');
+      const logs = appState.logs || [];
+      if (!appState.selectedLogId && logs.length) appState.selectedLogId = logs[0].id;
+      const okCount = logs.filter(item => item.ok).length;
+      const failCount = logs.length - okCount;
+      const avgLatency = logs.length ? Math.round(logs.reduce((sum, item) => sum + (item.duration_ms || 0), 0) / logs.length) : 0;
+      document.getElementById('logOverviewStats').innerHTML = [
+        {label: '最近日志数', value: logs.length, note: '当前面板内的摘要数量'},
+        {label: '成功', value: okCount, note: '最近成功请求'},
+        {label: '失败', value: failCount, note: '最近失败请求'},
+        {label: '平均耗时', value: avgLatency ? `${avgLatency} ms` : '-', note: '按当前日志窗口估算'}
+      ].map(item => `
+        <div class="metric-card">
+          <div class="metric-label">${item.label}</div>
+          <div class="metric-value">${esc(item.value)}</div>
+          <div class="metric-note">${item.note}</div>
+        </div>
+      `).join('');
+      rows.innerHTML = logs.map(log => `
+        <tr class="log-list-row ${appState.selectedLogId === log.id ? 'active' : ''}" onclick="selectLog('${log.id}')">
+          <td>${fmtTs(log.ts)}</td>
+          <td>${esc((log.api_format || '').toUpperCase() || '-')}</td>
+          <td>${esc(log.path || '-')}</td>
+          <td>${esc(log.account_name || log.account_id || '-')}</td>
+          <td><span class="chip ${log.ok ? 'tone-healthy' : 'tone-disabled'}">${log.ok ? '成功' : '失败'} · ${esc(log.status_code)}</span></td>
+          <td>${esc(log.duration_ms)} ms</td>
+        </tr>
+      `).join('') || '<tr><td colspan="6">暂无日志</td></tr>';
+
+      const selected = appState.logDetails[appState.selectedLogId] || logs.find(item => item.id === appState.selectedLogId) || null;
+      const detail = selected?.detail || {};
+      const timeline = detail.timeline || [];
+      document.getElementById('logDetailMeta').innerHTML = selected ? `
+        <div class="kv-card"><div class="label">路径</div><div class="value">${esc(selected.path)}</div></div>
+        <div class="kv-card"><div class="label">协议</div><div class="value">${esc((selected.api_format || '').toUpperCase() || '-')}</div></div>
+        <div class="kv-card"><div class="label">客户端模型</div><div class="value">${esc(selected.client_model || '-')}</div></div>
+        <div class="kv-card"><div class="label">上游模型</div><div class="value">${esc(selected.upstream_model || '-')}</div></div>
+        <div class="kv-card"><div class="label">命中账号</div><div class="value">${esc(selected.account_name || selected.account_id || '-')}</div></div>
+        <div class="kv-card"><div class="label">结果</div><div class="value">${selected.ok ? '成功' : '失败'} · ${esc(selected.status_code)}</div></div>
+        <div class="kv-card"><div class="label">耗时</div><div class="value">${esc(selected.duration_ms)} ms</div></div>
+        <div class="kv-card"><div class="label">停止原因</div><div class="value">${esc(selected.finish_reason || '-')}</div></div>
+        <div class="kv-card"><div class="label">Response ID</div><div class="value">${esc(selected.response_id || '-')}</div></div>
+        <div class="kv-card"><div class="label">工具调用数</div><div class="value">${esc(selected.tool_count ?? 0)}</div></div>
+        <div class="kv-card"><div class="label">思考链字符</div><div class="value">${esc(selected.reasoning_chars ?? 0)}</div></div>
+      ` : '<div class="kv-card"><div class="value">暂无日志明细</div></div>';
+      document.getElementById('logDetailTimeline').textContent = selected
+        ? (timeline.length ? timeline.map((item, index) => `${index + 1}. [${item.phase || '-'}] +${item.offset_ms ?? 0}ms  ${item.event_name || '-'}\n${JSON.stringify(item.payload || {}, null, 2)}`).join('\n\n') : `暂无细分时间线。\n\n时间：${fmtTs(selected.ts)}\n路径：${selected.path}\n状态：${selected.ok ? '成功' : '失败'} · ${selected.status_code}`)
+        : '暂无日志明细';
+      document.getElementById('logDetailBody').textContent = selected
+        ? `请求摘要：\n${detail.request?.preview || '-'}\n\nPrompt 预览：\n${detail.request?.prompt_preview || '-'}\n\n响应摘要：\n${detail.response?.preview || '-'}\n\n思考链摘要：\n${detail.response?.reasoning_preview || '-'}\n\n备注：\n${detail.note || selected.error || '无'}`
+        : '暂无日志明细';
+      document.getElementById('logDetailRaw').textContent = selected ? JSON.stringify(selected.detail || {}, null, 2) : '暂无 detail JSON';
+    }
+
+    async function loadLogs() {
+      const res = await api('/api/logs');
+      appState.logs = res.logs || [];
+      if (!appState.logs.some(item => item.id === appState.selectedLogId)) {
+        appState.selectedLogId = appState.logs[0]?.id || null;
+      }
+      renderLogs();
+    }
+
+    function renderConfig() {
+      const config = appState.config || {};
+      document.getElementById('cfgApiKey').value = config.api_key || '';
+      document.getElementById('cfgAdminToken').value = config.admin_token || '';
+      document.getElementById('cfgDefaultModel').value = config.default_model || '';
+      document.getElementById('cfgKeepaliveInterval').value = config.keepalive_interval_seconds || 900;
+      document.getElementById('cfgKeepaliveExpiring').value = config.keepalive_expiring_minutes || 20;
+      document.getElementById('cfgKeepaliveChatFallback').value = config.keepalive_chat_fallback_enabled ? '1' : '0';
+      document.getElementById('cfgFailThreshold').value = config.fail_threshold || 3;
+      document.getElementById('cfgMaxInflight').value = config.max_inflight || 2;
+      document.getElementById('cfgCooldownSeconds').value = config.cooldown_seconds || 120;
+      document.getElementById('cfgAutoRegisterEnabled').value = config.AUTO_REGISTER_ENABLED ? '1' : '0';
+      document.getElementById('cfgAutoRegisterMinActive').value = config.AUTO_REGISTER_MIN_ACTIVE || 1;
+      document.getElementById('cfgAutoRegisterBatch').value = config.AUTO_REGISTER_BATCH || 1;
+      document.getElementById('cfgAutoRegisterWorkers').value = config.AUTO_REGISTER_MAX_WORKERS || 2;
+      document.getElementById('cfgAutoRegisterPassword').value = config.AUTO_REGISTER_PASSWORD || '';
+      document.getElementById('cfgAutoRegisterManualMode').value = config.AUTO_REGISTER_BROWSER_MODE_MANUAL || 'visible';
+      document.getElementById('cfgAutoRegisterBackgroundMode').value = config.AUTO_REGISTER_BROWSER_MODE_BACKGROUND || 'headless';
+      document.getElementById('cfgAutoReloginEnabled').value = config.AUTO_RELOGIN_ENABLED ? '1' : '0';
+      document.getElementById('cfgRegisterProxy').value = config.REGISTER_PROXY || '';
+      document.getElementById('cfgMailUseProxy').value = config.MAIL_USE_PROXY ? '1' : '0';
+      document.getElementById('cfgMailProviderDefault').value = config.MAIL_PROVIDER_DEFAULT || 'moemail';
+      document.getElementById('cfgMoemailApiKey').value = config.MOEMAIL_API_KEY || '';
+      document.getElementById('cfgMoemailApiBase').value = config.MOEMAIL_API_BASE || '';
+      document.getElementById('cfgMoemailChannelsJson').value = config.MOEMAIL_CHANNELS_JSON || '';
+    }
+
+    function renderChat() {
+      appState.chatStream = document.getElementById('chatStream')?.value !== '0';
+      appState.chatShowThinking = document.getElementById('chatThinking')?.value === '1';
+      appState.chatProtocol = document.getElementById('chatProtocol')?.value || appState.chatProtocol;
+      const meta = appState.chatMeta || {};
+      const modelSelect = document.getElementById('chatModel');
+      const currentValue = modelSelect.value;
+      modelSelect.innerHTML = (appState.models || []).map(item => `<option value="${item.id}">${item.id}</option>`).join('');
+      if ((appState.models || []).some(item => item.id === currentValue)) {
+        modelSelect.value = currentValue;
+      }
+      document.getElementById('modelList').innerHTML = (appState.models || []).map(item => `<div class="model-item">${esc(item.id)}</div>`).join('');
+      document.getElementById('chatProtocol').value = appState.chatProtocol;
+      document.getElementById('chatStream').value = appState.chatStream ? '1' : '0';
+      document.getElementById('chatThinking').value = appState.chatShowThinking ? '1' : '0';
+      document.getElementById('chatStopBtn').classList.toggle('hidden', !appState.chatBusy);
+      const waitingToolResult = !appState.chatBusy && meta.finish_reason === 'tool_calls' && appState.chatToolCalls.length;
+      document.getElementById('chatStatusNotice').textContent = waitingToolResult
+        ? '本轮已返回 tool_calls，等待你在右侧回填 tool_result 后继续。'
+        : appState.chatBusy
+        ? (appState.chatStream ? '流式生成中，可随时停止。右侧会持续刷新思考链、工具调用与原始 SSE。' : '非流模式等待中。当前不会逐字输出，但链路仍在执行。')
+        : (appState.chatHistory.length ? '本轮已完成。你可以继续多轮发送，也可以切换协议重新验证。' : '尚未开始对话。默认建议先走流式，快速观察首包、思考链和工具调用。');
+      document.getElementById('chatTranscript').innerHTML = appState.chatHistory.length ? appState.chatHistory.map(msg => `
+        <div class="chat-msg ${msg.role}">
+          <div class="chat-msg-meta">
+            <span>${msg.role === 'user' ? 'user' : msg.role === 'tool' ? 'tool_result' : 'assistant'}</span>
+            <span>${esc(msg.protocol || appState.chatProtocol)}</span>
+          </div>
+          <div class="chat-msg-body">${esc(msg.content || (msg.role === 'assistant' && msg.toolCalls?.length ? '[本轮返回了工具调用，请在右侧回填工具结果继续。]' : ''))}</div>
+          ${(msg.role === 'assistant' && msg.reasoning && appState.chatShowThinking) ? `<details class="chat-detail" style="margin-top:12px;" open><summary>思考链</summary><div class="result-panel mono chat-side-panel">${esc(msg.reasoning)}</div></details>` : ''}
+          ${(msg.role === 'tool' && msg.tool_use_id) ? `<div class="chat-msg-submeta"><span>tool_call_id：${esc(msg.tool_use_id)}</span><span>工具：${esc(msg.name || '-')}</span></div>` : ''}
+          ${(msg.role === 'assistant' && msg.meta) ? `<div class="chat-msg-submeta">
+              <span>协议：${esc(msg.meta.protocol || '-')}</span>
+              <span>路径：${esc(msg.meta.path || '-')}</span>
+              <span>停止原因：${esc(msg.meta.finish_reason || '-')}</span>
+              <span>响应 ID：${esc(msg.meta.response_id || '-')}</span>
+            </div>` : ''}
+        </div>
+      `).join('') : '<div class="chat-empty">这里现在是多轮对话调试台。左侧负责真实聊天体验，右侧负责查看思考链、工具调用、原始 JSON 和 SSE 事件。</div>';
+      document.getElementById('chatReasoning').textContent = appState.chatReasoning || (appState.chatShowThinking ? '当前未返回思考链。' : '你已关闭思考链展示。');
+      document.getElementById('chatToolCalls').innerHTML = appState.chatToolCalls.length ? appState.chatToolCalls.map((tool, index) => `
+        <div class="kv-card" style="margin-bottom:12px;">
+          <div class="label">tool ${index + 1}</div>
+          <div class="value" style="margin-bottom:10px;">${esc(tool.name || '-')}</div>
+          <div class="mono" style="white-space:pre-wrap; font-size:12px; color:var(--text-soft);">${esc(JSON.stringify(tool.input || {_raw: tool.arguments_text || ''}, null, 2))}</div>
+          <div class="editor-actions" style="margin-top:12px;">
+            <button class="secondary" onclick="pickToolCall(${index})">选择</button>
+            <button class="secondary" onclick="fillToolResultTemplate(${index})">一键填 mock</button>
+          </div>
+        </div>
+      `).join('') : '当前没有工具调用。';
+      document.getElementById('chatRaw').textContent = appState.chatRawEvents.length ? appState.chatRawEvents.join('\n\n') : '发送后会在这里看到原始 JSON、SSE chunk 和协议事件。';
+      document.getElementById('chatRequestMeta').innerHTML = `
+        <div class="kv-card"><div class="label">协议</div><div class="value">${esc(meta.protocol || appState.chatProtocol)}</div></div>
+        <div class="kv-card"><div class="label">路径</div><div class="value">${esc(meta.path || '-')}</div></div>
+        <div class="kv-card"><div class="label">模式</div><div class="value">${appState.chatStream ? 'stream' : 'non-stream'}</div></div>
+        <div class="kv-card"><div class="label">停止原因</div><div class="value">${esc(meta.finish_reason || '-')}</div></div>
+        <div class="kv-card"><div class="label">响应 ID</div><div class="value">${esc(meta.response_id || '-')}</div></div>
+        <div class="kv-card"><div class="label">提示</div><div class="value">${esc(meta.note || '发送后这里会补齐命中链路信息。')}</div></div>
+      `;
+      document.getElementById('toolResultTarget').value = appState.chatPendingToolCall ? `${appState.chatPendingToolCall.name} · ${appState.chatPendingToolCall.id}` : '';
+    }
+
+    async function init() {
+      try {
+        await api('/api/auth/check');
+        appState.selectedAccountId = null;
+        appState.editingAccountId = null;
+        appState.selectedIds.clear();
+        appState.selectedLogId = null;
+        document.getElementById('loginScreen').classList.add('hidden');
+        document.getElementById('appShell').classList.remove('hidden');
+        await loadAll();
+      } catch {
+        document.getElementById('loginScreen').classList.remove('hidden');
+        document.getElementById('appShell').classList.add('hidden');
+      }
+    }
+
+    async function login() {
+      const token = document.getElementById('loginToken').value.trim();
+      const msg = document.getElementById('loginMsg');
+      msg.textContent = '登录中...';
+      try {
+        await api('/api/login', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({token})
+        });
+        msg.textContent = '登录成功，正在进入控制台。';
+        await init();
+      } catch (error) {
+        msg.textContent = error.message;
+      }
+    }
+
+    function disconnectRegisterStream() {
+      if (appState.registerEventSource) {
+        appState.registerEventSource.close();
+        appState.registerEventSource = null;
+      }
+    }
+
+    function setRegisterTaskState(task) {
+      appState.registerTask = task ? {...task} : null;
+      renderRegister();
+    }
+
+    function connectRegisterStream(taskId) {
+      if (!taskId) return;
+      disconnectRegisterStream();
+      const source = new EventSource(`/api/auto-register/stream?task_id=${encodeURIComponent(taskId)}`);
+      appState.registerEventSource = source;
+      source.addEventListener('state', (event) => {
+        try {
+          setRegisterTaskState(JSON.parse(event.data || '{}'));
+        } catch {}
+      });
+      source.addEventListener('log', (event) => {
+        try {
+          const item = JSON.parse(event.data || '{}');
+          appState.registerLogs.push(item);
+          appState.registerLogs = appState.registerLogs.slice(-500);
+          renderRegister();
+        } catch {}
+      });
+      source.addEventListener('result', (event) => {
+        try {
+          const item = JSON.parse(event.data || '{}');
+          appState.registerResults.push(item);
+          appState.registerResults = appState.registerResults.slice(-200);
+          renderRegister();
+        } catch {}
+      });
+      source.addEventListener('done', (event) => {
+        try {
+          setRegisterTaskState(JSON.parse(event.data || '{}'));
+        } catch {}
+        disconnectRegisterStream();
+        loadAll();
+      });
+      source.addEventListener('error', () => {
+        disconnectRegisterStream();
+      });
+    }
+
+    async function startRegisterTask() {
+      try {
+        const browserMode = document.getElementById('regBrowserMode').value || 'visible';
+        const requestedWorkers = Number(document.getElementById('regWorkers').value || 1);
+        const res = await api('/api/auto-register/start', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            count: Number(document.getElementById('regCount').value || 1),
+            workers: requestedWorkers,
+            browser_mode: browserMode
+          })
+        });
+        appState.autoRegisterConfig = res.config || appState.autoRegisterConfig;
+        appState.registerTask = res.task || null;
+        appState.registerLogs = [];
+        appState.registerResults = [];
+        renderRegister();
+        if (res.task?.id) connectRegisterStream(res.task.id);
+      } catch (error) {
+        alert(error.message);
+      }
+    }
+
+    async function stopRegisterTask() {
+      try {
+        const taskId = appState.registerTask?.id || appState.autoRegisterConfig?.current_task?.id || '';
+        if (!taskId) {
+          alert('当前没有可停止的注册任务');
+          return;
+        }
+        const res = await api('/api/auto-register/stop', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({task_id: taskId})
+        });
+        setRegisterTaskState(res.task || null);
+      } catch (error) {
+        alert(error.message);
+      }
+    }
+
+    async function loadAll() {
+      const [stats, accountsRes, logsRes, config, runtime, modelsRes, autoRegisterConfig] = await Promise.all([
+        api('/api/stats'),
+        api('/api/accounts'),
+        api('/api/logs'),
+        api('/api/config'),
+        api('/api/runtime'),
+        api('/v1/models'),
+        api('/api/auto-register/config')
+      ]);
+      appState.stats = stats;
+      appState.accounts = accountsRes.accounts || [];
+      appState.logs = logsRes.logs || [];
+      appState.config = config;
+      appState.runtime = runtime;
+      appState.models = modelsRes.data || [];
+      appState.autoRegisterConfig = autoRegisterConfig || {};
+      appState.registerTask = autoRegisterConfig.current_task || null;
+      const lostSelected = appState.selectedAccountId && !appState.accounts.some(acc => acc.id === appState.selectedAccountId);
+      const lostEditing = appState.editingAccountId && !appState.accounts.some(acc => acc.id === appState.editingAccountId);
+      if (lostSelected) appState.selectedAccountId = null;
+      if (lostEditing) appState.editingAccountId = null;
+      appState.selectedIds = new Set(Array.from(appState.selectedIds).filter(id => appState.accounts.some(acc => acc.id === id)));
+      if (!appState.logs.some(log => log.id === appState.selectedLogId)) appState.selectedLogId = appState.logs[0]?.id || null;
+      if (lostSelected || lostEditing) {
+        document.getElementById('accName').value = '';
+        document.getElementById('accEmail').value = '';
+        document.getElementById('accPrefix').value = 'umans-';
+        document.getElementById('accEnabled').value = '1';
+        document.getElementById('accPassword').value = '';
+        document.getElementById('accCookies').value = '';
+      }
+      if (appState.registerTask?.id && !['completed', 'failed', 'stopped'].includes(appState.registerTask.status || '')) {
+        connectRegisterStream(appState.registerTask.id);
+      } else if (!appState.registerTask?.id) {
+        disconnectRegisterStream();
+      }
+      renderAll();
+    }
+
+    function renderAll() {
+      updateTopBar();
+      renderTopStatus();
+      renderOverview();
+      renderAccounts();
+      renderRegister();
+      renderKeepalive();
+      renderLogs();
+      renderConfig();
+      renderChat();
+    }
+
+    function switchView(name) {
+      appState.activeView = name;
+      updateTopBar();
+    }
+
+    function toggleSelected(id, checked) {
+      if (checked) appState.selectedIds.add(id);
+      else appState.selectedIds.delete(id);
+      renderAccounts();
+    }
+
+    function toggleSelectAll(checked) {
+      appState.selectedIds.clear();
+      if (checked) {
+        appState.accounts.forEach(acc => appState.selectedIds.add(acc.id));
+      }
+      renderAccounts();
+    }
+
+    function startCreateAccount() {
+      appState.editingAccountId = null;
+      appState.selectedAccountId = null;
+      document.getElementById('accName').value = '';
+      document.getElementById('accEmail').value = '';
+      document.getElementById('accPrefix').value = 'umans-';
+      document.getElementById('accEnabled').value = '1';
+      document.getElementById('accPassword').value = '';
+      document.getElementById('accCookies').value = '';
+      renderAccounts();
+      switchView('accounts');
+    }
+
+    async function selectAccount(id) {
+      try {
+        const res = await api(`/api/accounts/${id}?include_cookies=1`);
+        const acc = res.account;
+        appState.selectedAccountId = id;
+        appState.editingAccountId = id;
+        document.getElementById('accName').value = acc.name || '';
+        document.getElementById('accEmail').value = acc.email || '';
+        document.getElementById('accPrefix').value = acc.allowed_model_prefix || 'umans-';
+        document.getElementById('accEnabled').value = acc.enabled ? '1' : '0';
+        document.getElementById('accPassword').value = '';
+        document.getElementById('accCookies').value = JSON.stringify(acc.cookies || {}, null, 2);
+        renderAccounts();
+        switchView('accounts');
+      } catch (error) {
+        alert(error.message);
+      }
+    }
+
+    function triggerSelectedAction(kind) {
+      if (!appState.selectedAccountId) return;
+      if (kind === 'test') testSession(appState.selectedAccountId);
+      if (kind === 'keepalive') keepaliveOne(appState.selectedAccountId);
+      if (kind === 'relogin') reloginOne(appState.selectedAccountId);
+    }
+
+    async function submitAccount() {
+      const isEdit = Boolean(appState.editingAccountId);
+      const payload = {
+        name: document.getElementById('accName').value.trim(),
+        email: document.getElementById('accEmail').value.trim(),
+        allowed_model_prefix: document.getElementById('accPrefix').value.trim(),
+        enabled: document.getElementById('accEnabled').value === '1',
+        cookies_json: document.getElementById('accCookies').value.trim()
+      };
+      const password = document.getElementById('accPassword').value.trim();
+      if (!isEdit || password) payload.password = password;
+      try {
+        if (isEdit) {
+          await api(`/api/accounts/${appState.editingAccountId}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+          });
+        } else {
+          await api('/api/accounts', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+          });
+        }
+        startCreateAccount();
+        await loadAll();
+        alert(isEdit ? '账号已更新' : '账号已新增');
+      } catch (error) {
+        alert(error.message);
+      }
+    }
+
+    function cancelEdit() {
+      startCreateAccount();
+    }
+
+    async function batchAction(action) {
+      const ids = Array.from(appState.selectedIds);
+      if (!ids.length) {
+        alert('请先勾选账号');
+        return;
+      }
+      if (action === 'delete' && !confirm(`确认批量删除 ${ids.length} 个账号？`)) return;
+      try {
+        const res = await api('/api/accounts/batch-action', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ids, action})
+        });
+        if (action === 'keepalive' || action === 'test-session') {
+          document.getElementById('keepaliveResult').textContent = JSON.stringify(res, null, 2);
+          switchView('keepalive');
+        }
+        appState.selectedIds.clear();
+        await loadAll();
+      } catch (error) {
+        alert(error.message);
+      }
+    }
+
+    async function testSession(id) {
+      try {
+        const res = await api(`/api/accounts/${id}/test-session`, {method: 'POST'});
+        document.getElementById('keepaliveResult').textContent = JSON.stringify(res, null, 2);
+        await loadAll();
+        switchView('keepalive');
+      } catch (error) {
+        alert(error.message);
+      }
+    }
+
+    async function keepaliveOne(id) {
+      try {
+        const res = await api(`/api/accounts/${id}/keepalive`, {method: 'POST'});
+        document.getElementById('keepaliveResult').textContent = JSON.stringify(res, null, 2);
+        await loadAll();
+        switchView('keepalive');
+      } catch (error) {
+        alert(error.message);
+      }
+    }
+
+    async function reloginOne(id, browserMode = 'headless') {
+      try {
+        const res = await api(`/api/accounts/${id}/relogin`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({browser_mode: browserMode})
+        });
+        document.getElementById('keepaliveResult').textContent = JSON.stringify(res, null, 2);
+        await loadAll();
+        switchView('keepalive');
+      } catch (error) {
+        alert(error.message);
+      }
+    }
+
+    async function runKeepaliveAll() {
+      try {
+        const res = await api('/api/keepalive/run', {method: 'POST'});
+        document.getElementById('keepaliveResult').textContent = JSON.stringify(res, null, 2);
+        await loadAll();
+      } catch (error) {
+        alert(error.message);
+      }
+    }
+
+    async function deleteAccount(id) {
+      if (!confirm('确认删除这个账号？')) return;
+      try {
+        await api(`/api/accounts/${id}`, {method: 'DELETE'});
+        if (appState.selectedAccountId === id) appState.selectedAccountId = null;
+        if (appState.editingAccountId === id) appState.editingAccountId = null;
+        await loadAll();
+      } catch (error) {
+        alert(error.message);
+      }
+    }
+
+    async function toggleAccount(id, enabled) {
+      try {
+        await api(`/api/accounts/${id}/${enabled ? 'enable' : 'disable'}`, {method: 'POST'});
+        await loadAll();
+      } catch (error) {
+        alert(error.message);
+      }
+    }
+
+    async function selectLog(id) {
+      appState.selectedLogId = id;
+      if (!appState.logDetails[id]) {
+        try {
+          const res = await api(`/api/logs/${id}`);
+          if (res.log) appState.logDetails[id] = res.log;
+        } catch (error) {
+          console.warn(error);
+        }
+      }
+      renderLogs();
+    }
+
+    async function saveConfig() {
+      try {
+        await api('/api/config', {
+          method: 'PUT',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            api_key: document.getElementById('cfgApiKey').value.trim(),
+            admin_token: document.getElementById('cfgAdminToken').value.trim(),
+            default_model: document.getElementById('cfgDefaultModel').value.trim(),
+            keepalive_interval_seconds: Number(document.getElementById('cfgKeepaliveInterval').value),
+            keepalive_expiring_minutes: Number(document.getElementById('cfgKeepaliveExpiring').value),
+            keepalive_chat_fallback_enabled: document.getElementById('cfgKeepaliveChatFallback').value === '1',
+            fail_threshold: Number(document.getElementById('cfgFailThreshold').value),
+            max_inflight: Number(document.getElementById('cfgMaxInflight').value),
+            cooldown_seconds: Number(document.getElementById('cfgCooldownSeconds').value),
+            AUTO_REGISTER_ENABLED: document.getElementById('cfgAutoRegisterEnabled').value === '1',
+            AUTO_REGISTER_MIN_ACTIVE: Number(document.getElementById('cfgAutoRegisterMinActive').value),
+            AUTO_REGISTER_BATCH: Number(document.getElementById('cfgAutoRegisterBatch').value),
+            AUTO_REGISTER_MAX_WORKERS: Number(document.getElementById('cfgAutoRegisterWorkers').value),
+            AUTO_REGISTER_PASSWORD: document.getElementById('cfgAutoRegisterPassword').value,
+            AUTO_REGISTER_BROWSER_MODE_MANUAL: document.getElementById('cfgAutoRegisterManualMode').value,
+            AUTO_REGISTER_BROWSER_MODE_BACKGROUND: document.getElementById('cfgAutoRegisterBackgroundMode').value,
+            AUTO_RELOGIN_ENABLED: document.getElementById('cfgAutoReloginEnabled').value === '1',
+            REGISTER_PROXY: document.getElementById('cfgRegisterProxy').value.trim(),
+            MAIL_USE_PROXY: document.getElementById('cfgMailUseProxy').value === '1',
+            MAIL_PROVIDER_DEFAULT: document.getElementById('cfgMailProviderDefault').value.trim(),
+            MOEMAIL_API_KEY: document.getElementById('cfgMoemailApiKey').value.trim(),
+            MOEMAIL_API_BASE: document.getElementById('cfgMoemailApiBase').value.trim(),
+            MOEMAIL_CHANNELS_JSON: document.getElementById('cfgMoemailChannelsJson').value.trim()
+          })
+        });
+        await loadAll();
+        alert('配置已保存');
+      } catch (error) {
+        alert(error.message);
+      }
+    }
+
+    function onChatProtocolChange() {
+      const nextProtocol = document.getElementById('chatProtocol').value;
+      if (appState.chatProtocol !== nextProtocol) {
+        appState.chatProtocol = nextProtocol;
+        if (nextProtocol !== 'responses') appState.chatPreviousResponseId = null;
+      }
+      renderChat();
+    }
+
+    function clearConversation() {
+      appState.chatHistory = [];
+      appState.chatReasoning = '';
+      appState.chatToolCalls = [];
+      appState.chatPendingToolCall = null;
+      appState.chatRawEvents = [];
+      appState.chatMeta = null;
+      appState.chatPreviousResponseId = null;
+      renderChat();
+    }
+
+    function stopConversation() {
+      appState.chatAbortController?.abort();
+      appState.chatAbortController = null;
+      appState.chatBusy = false;
+      appState.chatMeta = Object.assign({}, appState.chatMeta || {}, {finish_reason: 'aborted', note: '已手动停止生成'});
+      renderChat();
+    }
+
+    function parseChatTools() {
+      const raw = document.getElementById('chatTools').value.trim();
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    }
+
+    function toOpenAITools(tools) {
+      return (tools || []).map(tool => ({
+        type: 'function',
+        function: {
+          name: tool.name,
+          description: tool.description || '',
+          parameters: tool.input_schema || tool.parameters || {type: 'object', properties: {}}
+        }
+      }));
+    }
+
+    function pickToolCall(index) {
+      const tool = appState.chatToolCalls[index];
+      if (!tool) return;
+      appState.chatPendingToolCall = tool;
+      document.getElementById('toolResultTarget').value = `${tool.name || '-'} · ${tool.id || '-'}`;
+      renderChat();
+    }
+
+    function fillToolResultTemplate(index) {
+      if (typeof index === 'number') pickToolCall(index);
+      const tool = appState.chatPendingToolCall;
+      if (!tool) return;
+      document.getElementById('toolResultInput').value = JSON.stringify({
+        ok: true,
+        mock: true,
+        tool: tool.name || '',
+        input: tool.input || {_raw: tool.arguments_text || ''}
+      }, null, 2);
+    }
+
+    function chatHeaders(protocol) {
+      const apiKey = (appState.config?.api_key || '').trim();
+      return protocol === 'messages'
+        ? {'Content-Type': 'application/json', 'x-api-key': apiKey}
+        : {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey};
+    }
+
+    function buildSimpleHistory(protocol) {
+      const history = appState.chatHistory.flatMap(item => {
+        if (item.role === 'tool') return [];
+        if (item.role !== 'assistant') return [{role: item.role, content: item.content || ''}];
+        if (protocol === 'messages' && item.toolCalls?.length) {
+          const content = [];
+          if (item.content) content.push({type: 'text', text: item.content});
+          item.toolCalls.forEach(call => content.push({type: 'tool_use', id: call.id, name: call.name, input: call.input || {_raw: call.arguments_text || ''}}));
+          return [{role: 'assistant', content}];
+        }
+        if (protocol === 'chat' && item.toolCalls?.length) {
+          return [{
+            role: 'assistant',
+            content: item.content || null,
+            tool_calls: item.toolCalls.map(call => ({
+              id: call.id,
+              type: 'function',
+              function: {name: call.name, arguments: JSON.stringify(call.input || {_raw: call.arguments_text || ''})}
+            }))
+          }];
+        }
+        return [{role: item.role, content: item.content || ''}];
+      });
+      const system = document.getElementById('chatSystem').value.trim();
+      if (protocol === 'chat' && system) {
+        return [{role: 'system', content: system}, ...history];
+      }
+      return history;
+    }
+
+    function buildChatRequest(protocol, inputText) {
+      const model = document.getElementById('chatModel').value;
+      const stream = document.getElementById('chatStream').value === '1';
+      const enableThinking = document.getElementById('chatThinking').value === '1';
+      const system = document.getElementById('chatSystem').value.trim();
+      const tools = parseChatTools();
+      if (protocol === 'messages') {
+        return {
+          path: '/v1/messages',
+          body: {
+            model,
+            stream,
+            ...(system ? {system} : {}),
+            messages: [...buildSimpleHistory(protocol), {role: 'user', content: inputText}],
+            ...(tools.length ? {tools} : {}),
+            ...(enableThinking ? {thinking: {type: 'enabled'}} : {})
+          }
+        };
+      }
+      if (protocol === 'chat') {
+        return {
+          path: '/v1/chat/completions',
+          body: {
+            model,
+            stream,
+            messages: [...buildSimpleHistory(protocol), {role: 'user', content: inputText}],
+            ...(tools.length ? {tools: toOpenAITools(tools)} : {}),
+            ...(enableThinking ? {reasoning_effort: 'medium'} : {})
+          }
+        };
+      }
+      const input = appState.chatPreviousResponseId
+        ? [{role: 'user', content: inputText}]
+        : [...buildSimpleHistory('chat'), {role: 'user', content: inputText}];
+      return {
+        path: '/v1/responses',
+        body: {
+          model,
+          stream,
+          input,
+          ...(system ? {instructions: system} : {}),
+          ...(tools.length ? {tools: toOpenAITools(tools).map(item => ({type: 'function', name: item.function.name, description: item.function.description, parameters: item.function.parameters}))} : {}),
+          ...(appState.chatPreviousResponseId ? {previous_response_id: appState.chatPreviousResponseId} : {}),
+          ...(enableThinking ? {reasoning: {effort: 'medium'}} : {})
+        }
+      };
+    }
+
+    function startAssistantTurn(protocol) {
+      const turn = {role: 'assistant', protocol, content: '', reasoning: '', toolCalls: [], meta: {protocol, path: '-', finish_reason: '-', response_id: '-', note: '请求已发送，等待上游首包...'}};
+      appState.chatHistory.push(turn);
+      return turn;
+    }
+
+    function appendRawEvent(label, payload) {
+      const text = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
+      appState.chatRawEvents.unshift(`[${label}]\n${text}`);
+      appState.chatRawEvents = appState.chatRawEvents.slice(0, 30);
+    }
+
+    function syncAssistantDetails(turn) {
+      if (turn?.meta && !['error', 'aborted'].includes(turn.meta.finish_reason)) {
+        if (turn.meta.finish_reason === 'tool_calls') {
+          turn.meta.note = '已收到 tool_calls，等待右侧回填 tool_result。';
+        } else if (turn.meta.finish_reason && turn.meta.finish_reason !== '-') {
+          turn.meta.note = '本轮已完成，可继续下一轮。';
+        }
+      }
+      appState.chatReasoning = turn.reasoning || '';
+      appState.chatToolCalls = turn.toolCalls || [];
+      appState.chatMeta = turn.meta || null;
+    }
+
+    async function readSSE(response, onEvent) {
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+      while (true) {
+        const {value, done} = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, {stream: true});
+        let boundary = buffer.indexOf('\n\n');
+        while (boundary >= 0) {
+          const raw = buffer.slice(0, boundary);
+          buffer = buffer.slice(boundary + 2);
+          boundary = buffer.indexOf('\n\n');
+          if (!raw.trim()) continue;
+          let event = 'message';
+          const dataLines = [];
+          for (const line of raw.split('\n')) {
+            if (line.startsWith('event:')) event = line.slice(6).trim();
+            if (line.startsWith('data:')) dataLines.push(line.slice(5).trim());
+          }
+          const dataText = dataLines.join('\n');
+          if (!dataText) continue;
+          if (dataText === '[DONE]') {
+            onEvent({event: 'done', data: '[DONE]'});
+            continue;
+          }
+          let data;
+          try {
+            data = JSON.parse(dataText);
+          } catch {
+            data = {raw: dataText};
+          }
+          onEvent({event, data});
+        }
+      }
+    }
+
+    function handleAnthropicStreamEvent(turn, evt) {
+      const data = evt.data || {};
+      appendRawEvent(evt.event, data);
+      if (evt.event === 'content_block_delta') {
+        const delta = data.delta || {};
+        if (delta.type === 'text_delta') turn.content += delta.text || '';
+        if (delta.type === 'thinking_delta') turn.reasoning += delta.thinking || '';
+        if (delta.type === 'input_json_delta') {
+          const last = turn.toolCalls[turn.toolCalls.length - 1];
+          if (last) last.arguments_text = (last.arguments_text || '') + (delta.partial_json || '');
+        }
+      }
+      if (evt.event === 'content_block_start' && data.content_block?.type === 'tool_use') {
+        turn.toolCalls.push({id: data.content_block.id, name: data.content_block.name, arguments_text: ''});
+      }
+      if (evt.event === 'content_block_stop') {
+        turn.toolCalls = (turn.toolCalls || []).map(item => {
+          if (!item.arguments_text) return item;
+          try {
+            return {...item, input: JSON.parse(item.arguments_text)};
+          } catch {
+            return item;
+          }
+        });
+      }
+      if (evt.event === 'message_start') {
+        turn.meta.response_id = data.message?.id || turn.meta.response_id;
+      }
+      if (evt.event === 'message_delta') {
+        turn.meta.finish_reason = data.delta?.stop_reason || turn.meta.finish_reason;
+        turn.meta.path = '/v1/messages';
+      }
+      syncAssistantDetails(turn);
+      renderChat();
+    }
+
+    function handleOpenAIChatStreamEvent(turn, evt) {
+      const data = evt.data || {};
+      appendRawEvent(evt.event, data);
+      if (evt.event === 'done') {
+        turn.meta.finish_reason = turn.meta.finish_reason === '-' ? 'stop' : turn.meta.finish_reason;
+        syncAssistantDetails(turn);
+        renderChat();
+        return;
+      }
+      const choice = (data.choices || [])[0] || {};
+      const delta = choice.delta || {};
+      if (delta.content) turn.content += delta.content;
+      if (delta.reasoning_content) turn.reasoning += delta.reasoning_content;
+      if (Array.isArray(delta.tool_calls)) {
+        delta.tool_calls.forEach(item => {
+          const index = item.index ?? 0;
+          if (!turn.toolCalls[index]) turn.toolCalls[index] = {id: item.id || '', name: item.function?.name || '', arguments_text: ''};
+          if (item.id) turn.toolCalls[index].id = item.id;
+          if (item.function?.name) turn.toolCalls[index].name = item.function.name;
+          if (item.function?.arguments) turn.toolCalls[index].arguments_text = (turn.toolCalls[index].arguments_text || '') + item.function.arguments;
+        });
+      }
+      turn.meta.finish_reason = choice.finish_reason || turn.meta.finish_reason;
+      turn.meta.path = '/v1/chat/completions';
+      turn.meta.response_id = data.id || turn.meta.response_id;
+      turn.toolCalls = (turn.toolCalls || []).map(item => {
+        if (!item.arguments_text) return item;
+        try {
+          return {...item, input: JSON.parse(item.arguments_text)};
+        } catch {
+          return item;
+        }
+      });
+      syncAssistantDetails(turn);
+      renderChat();
+    }
+
+    function handleResponsesStreamEvent(turn, evt) {
+      const data = evt.data || {};
+      appendRawEvent(evt.event, data);
+      if (evt.event === 'response.output_text.delta') turn.content += data.delta || '';
+      if (evt.event === 'response.reasoning_summary_text.delta') turn.reasoning += data.delta || '';
+      if (evt.event === 'response.output_item.added' && data.item?.type === 'function_call') {
+        turn.toolCalls.push({id: data.item.call_id, name: data.item.name, arguments_text: ''});
+      }
+      if (evt.event === 'response.function_call_arguments.delta') {
+        const last = turn.toolCalls[turn.toolCalls.length - 1];
+        if (last) last.arguments_text = (last.arguments_text || '') + (data.delta || '');
+      }
+      if (evt.event === 'response.function_call_arguments.done') {
+        turn.toolCalls = (turn.toolCalls || []).map(item => {
+          if (!item.arguments_text) return item;
+          try {
+            return {...item, input: JSON.parse(item.arguments_text)};
+          } catch {
+            return item;
+          }
+        });
+      }
+      if (evt.event === 'response.completed') {
+        turn.meta.finish_reason = turn.toolCalls.length ? 'tool_calls' : 'stop';
+        turn.meta.response_id = data.response?.id || turn.meta.response_id;
+        appState.chatPreviousResponseId = data.response?.id || appState.chatPreviousResponseId;
+      }
+      turn.meta.path = '/v1/responses';
+      syncAssistantDetails(turn);
+      renderChat();
+    }
+
+    function applyNonStreamResult(protocol, turn, res) {
+      appendRawEvent(protocol + ':json', res);
+      if (protocol === 'messages') {
+        turn.meta.path = '/v1/messages';
+        turn.meta.response_id = res.id || '-';
+        turn.meta.finish_reason = res.stop_reason || 'end_turn';
+        const content = Array.isArray(res.content) ? res.content : [];
+        turn.content = content.filter(item => item.type === 'text').map(item => item.text || '').join('');
+        turn.reasoning = content.filter(item => item.type === 'thinking').map(item => item.thinking || '').join('\n\n');
+        turn.toolCalls = content.filter(item => item.type === 'tool_use').map(item => ({id: item.id, name: item.name, input: item.input || {}}));
+      } else if (protocol === 'chat') {
+        const choice = (res.choices || [])[0] || {};
+        const message = choice.message || {};
+        turn.meta.path = '/v1/chat/completions';
+        turn.meta.response_id = res.id || '-';
+        turn.meta.finish_reason = choice.finish_reason || 'stop';
+        turn.content = message.content || '';
+        turn.reasoning = message.reasoning_content || '';
+        turn.toolCalls = (message.tool_calls || []).map(item => ({id: item.id, name: item.function?.name, input: (() => { try { return JSON.parse(item.function?.arguments || '{}'); } catch { return {_raw: item.function?.arguments || ''}; } })()}));
+      } else {
+        turn.meta.path = '/v1/responses';
+        turn.meta.response_id = res.id || '-';
+        turn.meta.finish_reason = (res.output || []).some(item => item.type === 'function_call') ? 'tool_calls' : 'stop';
+        appState.chatPreviousResponseId = res.id || appState.chatPreviousResponseId;
+        turn.reasoning = (res.output || []).filter(item => item.type === 'reasoning').map(item => (item.summary || []).map(x => x.text || '').join('\n')).join('\n\n');
+        turn.toolCalls = (res.output || []).filter(item => item.type === 'function_call').map(item => ({id: item.call_id, name: item.name, input: (() => { try { return JSON.parse(item.arguments || '{}'); } catch { return {_raw: item.arguments || ''}; } })()}));
+        const msgItem = (res.output || []).find(item => item.type === 'message');
+        turn.content = msgItem?.content?.map(part => part.text || '').join('\n') || '';
+      }
+      syncAssistantDetails(turn);
+    }
+
+    async function submitToolResult() {
+      const tool = appState.chatPendingToolCall;
+      if (!tool) {
+        alert('请先从右侧工具调用列表里选择一条工具调用');
+        return;
+      }
+      if (appState.chatProtocol !== 'responses' || !appState.chatPreviousResponseId) {
+        alert('当前最小闭环只支持 Responses 协议。请切到 OpenAI /v1/responses 再回填工具结果。');
+        return;
+      }
+      const raw = document.getElementById('toolResultInput').value.trim();
+      if (!raw) {
+        alert('请先填写 tool_result 内容');
+        return;
+      }
+      const mode = document.getElementById('toolResultMode').value;
+      let output;
+      try {
+        output = JSON.parse(raw);
+      } catch {
+        output = raw;
+      }
+      appState.chatHistory.push({
+        role: 'tool',
+        protocol: 'responses',
+        name: tool.name,
+        tool_use_id: tool.id,
+        content: typeof output === 'string' ? output : JSON.stringify(output, null, 2)
+      });
+      appState.chatPendingToolCall = null;
+      document.getElementById('toolResultInput').value = '';
+      document.getElementById('toolResultTarget').value = '';
+      renderChat();
+      if (mode === 'append') return;
+
+      const headers = chatHeaders('responses');
+      const system = document.getElementById('chatSystem').value.trim();
+      const tools = parseChatTools();
+      appState.chatBusy = true;
+      appState.chatReasoning = '';
+      appState.chatToolCalls = [];
+      appState.chatRawEvents = [];
+      const assistantTurn = startAssistantTurn('responses');
+      appState.chatMeta = assistantTurn.meta;
+      renderChat();
+      const controller = new AbortController();
+      appState.chatAbortController = controller;
+      try {
+        const body = {
+          model: document.getElementById('chatModel').value,
+          stream: document.getElementById('chatStream').value === '1',
+          previous_response_id: appState.chatPreviousResponseId,
+          input: [{type: 'function_call_output', call_id: tool.id, output}],
+          ...(system ? {instructions: system} : {}),
+          ...(tools.length ? {tools: toOpenAITools(tools).map(item => ({type: 'function', name: item.function.name, description: item.function.description, parameters: item.function.parameters}))} : {}),
+          ...(document.getElementById('chatThinking').value === '1' ? {reasoning: {effort: 'medium'}} : {})
+        };
+        if (body.stream) {
+          const response = await fetch('/v1/responses', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers,
+            body: JSON.stringify(body),
+            signal: controller.signal
+          });
+          if (!response.ok) throw new Error(await response.text());
+          await readSSE(response, evt => handleResponsesStreamEvent(assistantTurn, evt));
+        } else {
+          const res = await api('/v1/responses', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(body)
+          });
+          applyNonStreamResult('responses', assistantTurn, res);
+          renderChat();
+        }
+        loadAll().catch(error => {
+          appendRawEvent('refresh-error', error.message || String(error));
+          renderChat();
+        });
+      } catch (error) {
+        assistantTurn.meta.finish_reason = error.name === 'AbortError' ? 'aborted' : 'error';
+        assistantTurn.meta.note = error.name === 'AbortError' ? '已手动停止生成' : error.message;
+        appendRawEvent('tool-result-error', error.message || String(error));
+        syncAssistantDetails(assistantTurn);
+        renderChat();
+      } finally {
+        appState.chatBusy = false;
+        appState.chatAbortController = null;
+        renderChat();
+      }
+    }
+
+    async function sendConversation() {
+      const input = document.getElementById('chatInput').value.trim();
+      if (!input || appState.chatBusy) return;
+      const protocol = document.getElementById('chatProtocol').value;
+      try {
+        const {path, body} = buildChatRequest(protocol, input);
+        const headers = chatHeaders(protocol);
+        appState.chatHistory.push({role: 'user', protocol, content: input});
+        const assistantTurn = startAssistantTurn(protocol);
+        appState.chatBusy = true;
+        appState.chatReasoning = '';
+        appState.chatToolCalls = [];
+        appState.chatRawEvents = [];
+        appState.chatMeta = assistantTurn.meta;
+        document.getElementById('chatInput').value = '';
+        renderChat();
+        const controller = new AbortController();
+        appState.chatAbortController = controller;
+        if (body.stream) {
+          const response = await fetch(path, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers,
+            body: JSON.stringify(body),
+            signal: controller.signal
+          });
+          if (!response.ok) {
+            throw new Error(await response.text());
+          }
+          await readSSE(response, evt => {
+            if (protocol === 'messages') handleAnthropicStreamEvent(assistantTurn, evt);
+            else if (protocol === 'chat') handleOpenAIChatStreamEvent(assistantTurn, evt);
+            else handleResponsesStreamEvent(assistantTurn, evt);
+          });
+        } else {
+          const res = await api(path, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(body)
+          });
+          applyNonStreamResult(protocol, assistantTurn, res);
+          renderChat();
+        }
+        loadAll().catch(error => {
+          appendRawEvent('refresh-error', error.message || String(error));
+          renderChat();
+        });
+      } catch (error) {
+        if (!appState.chatHistory.length || appState.chatHistory[appState.chatHistory.length - 1].role !== 'assistant') {
+          alert(error.message || '请求失败');
+          return;
+        }
+        const assistantTurn = appState.chatHistory[appState.chatHistory.length - 1];
+        if (error.name === 'AbortError') {
+          assistantTurn.meta.finish_reason = 'aborted';
+          assistantTurn.meta.note = '已手动停止生成';
+        } else {
+          assistantTurn.meta.finish_reason = 'error';
+          assistantTurn.meta.note = error.message;
+          appendRawEvent('error', error.message);
+        }
+        syncAssistantDetails(assistantTurn);
+        renderChat();
+      } finally {
+        appState.chatBusy = false;
+        appState.chatAbortController = null;
+        renderChat();
+      }
+    }
+
+    initTheme();
+    init();
+  </script>
+</body>
+</html>
