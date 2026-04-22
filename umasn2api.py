@@ -11,15 +11,21 @@ umans2api: 把 umans.ai 的私有 chat 接口转换为 Anthropic /v1/messages �
 import json
 import os
 import re
+try:
+    import fcntl
+except ImportError:  # pragma: no cover
+    fcntl = None
 import time
 import threading
 import uuid
 import logging
+import hashlib
 from copy import deepcopy
 from pathlib import Path
 from urllib.parse import urljoin, urlsplit
 
 import requests
+from requests.adapters import HTTPAdapter
 from flask import Flask, Response, jsonify, render_template, request, session, stream_with_context
 
 from umans2api.account_manager import AccountManager
@@ -32,7 +38,12 @@ from umans2api.db import (
     insert_request_log,
     list_request_logs,
     maybe_import_legacy_account,
+    get_response_cache,
+    prune_response_cache,
+    response_cache_stats,
     seed_config_defaults,
+    summarize_request_logs,
+    upsert_response_cache,
     upsert_config_values,
 )
 from umans2api.keepalive import KeepAliveService
@@ -60,6 +71,8 @@ UPSTREAM_MODEL_ALIAS_MAP = {}
 UPSTREAM_MODEL_REFRESHED_AT = 0.0
 UPSTREAM_MODEL_REFRESH_TTL = 900
 UPSTREAM_MODEL_LOCK = threading.Lock()
+_BACKGROUND_LOCK_HANDLE = None
+_BACKGROUND_OWNER = False
 
 UA = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -111,6 +124,9 @@ CONFIG_DEFAULTS = {
     "MOEMAIL_API_KEY": FILE_CONFIG.get("MOEMAIL_API_KEY", ""),
     "MOEMAIL_API_BASE": FILE_CONFIG.get("MOEMAIL_API_BASE", ""),
     "MOEMAIL_CHANNELS_JSON": FILE_CONFIG.get("MOEMAIL_CHANNELS_JSON", ""),
+    "RESPONSE_CACHE_ENABLED": FILE_CONFIG.get("RESPONSE_CACHE_ENABLED", True),
+    "RESPONSE_CACHE_TTL_SECONDS": FILE_CONFIG.get("RESPONSE_CACHE_TTL_SECONDS", 300),
+    "RESPONSE_CACHE_MAX_ENTRIES": FILE_CONFIG.get("RESPONSE_CACHE_MAX_ENTRIES", 1000),
 }
 CONFIG_DB_KEYS = set(CONFIG_DEFAULTS.keys())
 
@@ -136,6 +152,45 @@ def sanitize_cookies(raw_cookies):
             continue
         safe[key] = value
     return safe
+
+
+_HTTP_LOCAL = threading.local()
+
+
+def get_http_session() -> requests.Session:
+    session_client = getattr(_HTTP_LOCAL, "http_session", None)
+    if session_client is not None:
+        return session_client
+    session_client = requests.Session()
+    adapter = HTTPAdapter(pool_connections=32, pool_maxsize=32, max_retries=0)
+    session_client.mount("https://", adapter)
+    session_client.mount("http://", adapter)
+    _HTTP_LOCAL.http_session = session_client
+    return session_client
+
+
+def acquire_background_owner() -> bool:
+    global _BACKGROUND_LOCK_HANDLE, _BACKGROUND_OWNER
+    if _BACKGROUND_OWNER:
+        return True
+    if not BACKGROUND_THREADS_ENABLED:
+        return False
+    if fcntl is None:
+        _BACKGROUND_OWNER = True
+        return True
+    lock_path = Path('/tmp/umans2api.background.lock')
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    handle = open(lock_path, 'a+')
+    try:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        handle.close()
+        log.info('后台线程锁已被其他 worker 占用，当前进程跳过 keepalive/auto-register/model refresh')
+        return False
+    _BACKGROUND_LOCK_HANDLE = handle
+    _BACKGROUND_OWNER = True
+    log.info('当前进程获得后台线程锁：%s', lock_path)
+    return True
 
 
 def reload_runtime_config():
@@ -182,7 +237,7 @@ auto_register.configure(
     keepalive=KEEPALIVE,
     logger=log,
 )
-if BACKGROUND_THREADS_ENABLED:
+if acquire_background_owner():
     KEEPALIVE.start()
     auto_register.start_auto_replenish()
 
@@ -262,7 +317,7 @@ def fetch_upstream_model_catalog() -> list[dict]:
     cookies = get_upstream_probe_cookies()
     if not cookies or not SITE_BASE_URL:
         return []
-    session_client = requests.Session()
+    session_client = get_http_session()
     domain = urlsplit(SITE_BASE_URL).hostname or "app.umans.ai"
     for key, value in cookies.items():
         session_client.cookies.set(key, value, domain=domain)
@@ -923,7 +978,7 @@ def build_tool_use_blocks(full_text, native_tools=None, wants_thinking=False):
     return "end_turn", blocks or [{"type": "text", "text": ""}], reasoning_text
 
 
-def anthropic_stream(upstream_resp, model_for_output: str, has_tools: bool, wants_thinking: bool = False):
+def anthropic_stream(upstream_resp, model_for_output: str, has_tools: bool, wants_thinking: bool = False, capture: dict | None = None):
     """
     把 umans SSE 转成 Anthropic 流式格式。
     如果声明了 tools，先收齐全部文本再判断是否是 tool_call，
@@ -952,6 +1007,17 @@ def anthropic_stream(upstream_resp, model_for_output: str, has_tools: bool, want
     if has_tools or wants_thinking:
         full, usage_in, usage_out, native_tools = collect_full_text(upstream_resp)
         stop_reason, blocks, _reasoning = build_tool_use_blocks(full, native_tools, wants_thinking=wants_thinking)
+        if capture is not None:
+            capture.update(
+                {
+                    "full_text": full,
+                    "usage_in": usage_in,
+                    "usage_out": usage_out or estimate_text_tokens(full),
+                    "stop_reason": stop_reason,
+                    "content_blocks": deepcopy(blocks),
+                    "reasoning_text": _reasoning or "",
+                }
+            )
 
         for idx, blk in enumerate(blocks):
             if blk["type"] == "thinking":
@@ -1041,6 +1107,7 @@ def anthropic_stream(upstream_resp, model_for_output: str, has_tools: bool, want
     output_text_len = 0
     usage_out = 0
     stop_reason = "end_turn"
+    text_parts = []
 
     try:
         for ev in iter_upstream_events(upstream_resp):
@@ -1073,6 +1140,7 @@ def anthropic_stream(upstream_resp, model_for_output: str, has_tools: bool, want
                     )
                     block_open = True
                 output_text_len += len(delta)
+                text_parts.append(delta)
                 yield sse(
                     "content_block_delta",
                     {
@@ -1127,6 +1195,18 @@ def anthropic_stream(upstream_resp, model_for_output: str, has_tools: bool, want
         },
     )
     yield sse("message_stop", {"type": "message_stop"})
+    if capture is not None:
+        visible_text = "".join(text_parts)
+        capture.update(
+            {
+                "full_text": visible_text,
+                "usage_in": 0,
+                "usage_out": usage_out or max(1, output_text_len // 4),
+                "stop_reason": stop_reason,
+                "content_blocks": [{"type": "text", "text": visible_text}] if visible_text else [{"type": "text", "text": ""}],
+                "reasoning_text": "",
+            }
+        )
 
 
 def check_admin_auth() -> bool:
@@ -1213,7 +1293,7 @@ def _attempt_upstream_request(
     exclude_ids = set()
     last_error = "no account available"
     last_status = 503
-    attempt_limit = max(1, min(2, max(1, ACCOUNT_MANAGER.summary().get("enabled", 0))))
+    attempt_limit = 2
 
     for _ in range(attempt_limit):
         account = ACCOUNT_MANAGER.reserve_next(upstream_model, exclude_ids=exclude_ids)
@@ -1223,7 +1303,7 @@ def _attempt_upstream_request(
         headers = build_upstream_headers(payload["id"])
         started = time.time()
         try:
-            upstream = requests.post(
+            upstream = get_http_session().post(
                 UPSTREAM_URL,
                 headers=headers,
                 cookies=account.get("cookies") or {},
@@ -1357,6 +1437,295 @@ def build_responses_usage(input_tokens: int, output_tokens: int):
     }
 
 
+def estimate_text_tokens(text: str) -> int:
+    return max(1, len(text or "") // 4) if text else 0
+
+
+def build_usage_metrics(
+    *,
+    input_tokens: int,
+    output_tokens: int,
+    reasoning_text: str = "",
+    cache_hit: bool = False,
+    cache_created: bool = False,
+) -> dict:
+    input_tokens = int(input_tokens or 0)
+    output_tokens = int(output_tokens or 0)
+    reasoning_tokens = estimate_text_tokens(reasoning_text)
+    return {
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
+        "total_tokens": input_tokens + output_tokens,
+        "reasoning_tokens": reasoning_tokens,
+        "cache_hit": bool(cache_hit),
+        "cache_read_input_tokens": input_tokens if cache_hit else 0,
+        "cache_creation_input_tokens": input_tokens if cache_created else 0,
+    }
+
+
+def attach_usage_details(
+    api_format: str,
+    usage: dict | None,
+    *,
+    reasoning_tokens: int = 0,
+    cache_read_input_tokens: int = 0,
+    cache_creation_input_tokens: int = 0,
+) -> dict:
+    payload = dict(usage or {})
+    if api_format == "anthropic":
+        if cache_read_input_tokens:
+            payload["cache_read_input_tokens"] = int(cache_read_input_tokens)
+        if cache_creation_input_tokens:
+            payload["cache_creation_input_tokens"] = int(cache_creation_input_tokens)
+        return payload
+
+    if api_format == "openai":
+        prompt_details = dict(payload.get("prompt_tokens_details") or {})
+        completion_details = dict(payload.get("completion_tokens_details") or {})
+        if cache_read_input_tokens:
+            prompt_details["cached_tokens"] = int(cache_read_input_tokens)
+        if reasoning_tokens:
+            completion_details["reasoning_tokens"] = int(reasoning_tokens)
+        if prompt_details:
+            payload["prompt_tokens_details"] = prompt_details
+        if completion_details:
+            payload["completion_tokens_details"] = completion_details
+        return payload
+
+    input_details = dict(payload.get("input_tokens_details") or {})
+    output_details = dict(payload.get("output_tokens_details") or {})
+    if cache_read_input_tokens:
+        input_details["cached_tokens"] = int(cache_read_input_tokens)
+    if reasoning_tokens:
+        output_details["reasoning_tokens"] = int(reasoning_tokens)
+    if input_details:
+        payload["input_tokens_details"] = input_details
+    if output_details:
+        payload["output_tokens_details"] = output_details
+    return payload
+
+
+def get_request_scope_key() -> str:
+    auth = request.headers.get("x-api-key") or request.headers.get("X-Api-Key") or ""
+    if not auth:
+        bearer = request.headers.get("Authorization", "")
+        if bearer.startswith("Bearer "):
+            auth = bearer[len("Bearer "):]
+    raw = auth or "public"
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
+
+
+def is_response_cache_enabled(path: str, *, tool_count: int = 0) -> bool:
+    if not bool(CFG.get("RESPONSE_CACHE_ENABLED", True)):
+        return False
+    if tool_count:
+        return False
+    return path in {"/v1/messages", "/v1/chat/completions", "/v1/responses"}
+
+
+def build_response_cache_identity(path: str, upstream_model: str, prompt_text: str) -> tuple[str, str, str]:
+    scope_key = get_request_scope_key()
+    prompt_hash = hashlib.sha256((prompt_text or "").encode("utf-8")).hexdigest()
+    raw = json.dumps(
+        {
+            "scope": scope_key,
+            "path": path,
+            "model": upstream_model,
+            "prompt_hash": prompt_hash,
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    cache_key = hashlib.sha256(raw.encode("utf-8")).hexdigest()
+    return cache_key, scope_key, prompt_hash
+
+
+def get_cached_response(path: str, upstream_model: str, prompt_text: str, *, tool_count: int = 0) -> dict | None:
+    if not is_response_cache_enabled(path, tool_count=tool_count):
+        return None
+    cache_key, scope_key, prompt_hash = build_response_cache_identity(path, upstream_model, prompt_text)
+    item = get_response_cache(cache_key)
+    if not item:
+        return None
+    payload = item.get("payload") or {}
+    if payload.get("scope_key") != scope_key or payload.get("prompt_hash") != prompt_hash:
+        return None
+    return payload
+
+
+def store_cached_response(
+    *,
+    path: str,
+    api_format: str,
+    upstream_model: str,
+    prompt_text: str,
+    tool_count: int,
+    response_body: dict,
+):
+    if not is_response_cache_enabled(path, tool_count=tool_count):
+        return False
+    cache_key, scope_key, prompt_hash = build_response_cache_identity(path, upstream_model, prompt_text)
+    payload = {
+        "scope_key": scope_key,
+        "prompt_hash": prompt_hash,
+        "api_format": api_format,
+        "path": path,
+        "response": response_body,
+    }
+    upsert_response_cache(
+        cache_key=cache_key,
+        scope_key=scope_key,
+        api_format=api_format,
+        model=upstream_model,
+        prompt_hash=prompt_hash,
+        payload=payload,
+        ttl_seconds=int(CFG.get("RESPONSE_CACHE_TTL_SECONDS", 300) or 300),
+    )
+    prune_response_cache(int(CFG.get("RESPONSE_CACHE_MAX_ENTRIES", 1000) or 1000))
+    return True
+
+
+def clone_cached_response(payload: dict) -> dict:
+    response_body = deepcopy((payload or {}).get("response") or {})
+    api_format = (payload or {}).get("api_format") or ""
+    now = int(time.time())
+    if api_format == "anthropic":
+        response_body["id"] = "msg_" + uuid.uuid4().hex[:24]
+    elif api_format == "openai":
+        response_body["id"] = "chatcmpl-" + uuid.uuid4().hex[:24]
+        response_body["created"] = now
+    elif api_format == "responses":
+        response_body["id"] = "resp_" + uuid.uuid4().hex[:24]
+        response_body["created_at"] = now
+    return response_body
+
+
+def anthropic_stream_from_cached(response_body: dict):
+    msg_id = response_body.get("id") or ("msg_" + uuid.uuid4().hex[:24])
+    usage = response_body.get("usage") or {}
+    content = response_body.get("content") or []
+    yield sse(
+        "message_start",
+        {
+            "type": "message_start",
+            "message": {
+                "id": msg_id,
+                "type": "message",
+                "role": "assistant",
+                "model": response_body.get("model"),
+                "content": [],
+                "stop_reason": None,
+                "stop_sequence": None,
+                "usage": {"input_tokens": int(usage.get("input_tokens") or 0), "output_tokens": 0},
+            },
+        },
+    )
+    for idx, blk in enumerate(content):
+        if blk.get("type") == "thinking":
+            yield sse("content_block_start", {"type": "content_block_start", "index": idx, "content_block": {"type": "thinking", "thinking": "", "signature": ""}})
+            if blk.get("thinking"):
+                yield sse("content_block_delta", {"type": "content_block_delta", "index": idx, "delta": {"type": "thinking_delta", "thinking": blk.get("thinking", "")}})
+            yield sse("content_block_stop", {"type": "content_block_stop", "index": idx})
+            continue
+        yield sse("content_block_start", {"type": "content_block_start", "index": idx, "content_block": {"type": "text", "text": ""}})
+        if blk.get("text"):
+            yield sse("content_block_delta", {"type": "content_block_delta", "index": idx, "delta": {"type": "text_delta", "text": blk.get("text", "")}})
+        yield sse("content_block_stop", {"type": "content_block_stop", "index": idx})
+    yield sse(
+        "message_delta",
+        {
+            "type": "message_delta",
+            "delta": {"stop_reason": response_body.get("stop_reason") or "end_turn", "stop_sequence": None},
+            "usage": {"output_tokens": int(usage.get("output_tokens") or 0)},
+        },
+    )
+    yield sse("message_stop", {"type": "message_stop"})
+
+
+def openai_stream_from_cached(response_body: dict):
+    message = (((response_body or {}).get("choices") or [{}])[0].get("message") or {})
+    usage = (response_body or {}).get("usage") or {}
+    cmpl_id = response_body.get("id") or ("chatcmpl-" + uuid.uuid4().hex[:24])
+    created = int(response_body.get("created") or time.time())
+    model = response_body.get("model")
+    yield write_openai_chunk(
+        {
+            "id": cmpl_id,
+            "object": "chat.completion.chunk",
+            "created": created,
+            "model": model,
+            "choices": [{"index": 0, "delta": {"role": "assistant", "content": ""}, "finish_reason": None}],
+        }
+    )
+    reasoning_text = message.get("reasoning_content") or ""
+    for chunk in chunk_string(reasoning_text):
+        if reasoning_text:
+            yield write_openai_chunk(
+                {
+                    "id": cmpl_id,
+                    "object": "chat.completion.chunk",
+                    "created": created,
+                    "model": model,
+                    "choices": [{"index": 0, "delta": {"reasoning_content": chunk}, "finish_reason": None}],
+                }
+            )
+    text = message.get("content") or ""
+    for chunk in chunk_string(text):
+        if text:
+            yield write_openai_chunk(
+                {
+                    "id": cmpl_id,
+                    "object": "chat.completion.chunk",
+                    "created": created,
+                    "model": model,
+                    "choices": [{"index": 0, "delta": {"content": chunk}, "finish_reason": None}],
+                }
+            )
+    done = {
+        "id": cmpl_id,
+        "object": "chat.completion.chunk",
+        "created": created,
+        "model": model,
+        "choices": [{"index": 0, "delta": {}, "finish_reason": (((response_body.get("choices") or [{}])[0].get("finish_reason")) or "stop")}],
+        "usage": usage,
+    }
+    yield write_openai_chunk(done)
+    yield "data: [DONE]\n\n"
+
+
+def responses_stream_from_cached(response_body: dict):
+    payload = deepcopy(response_body or {})
+    response_id = payload.get("id") or ("resp_" + uuid.uuid4().hex[:24])
+    model = payload.get("model")
+    usage = payload.get("usage") or {}
+    output_items = payload.get("output") or []
+    yield responses_sse("response.created", {"response": build_response_object(response_id, model, "in_progress", [])})
+    yield responses_sse("response.in_progress", {"response": build_response_object(response_id, model, "in_progress", [])})
+    for idx, item in enumerate(output_items):
+        if item.get("type") == "reasoning":
+            in_progress = {"id": item.get("id"), "type": "reasoning", "summary": [], "status": "in_progress"}
+            yield responses_sse("response.output_item.added", {"output_index": idx, "item": in_progress})
+            text = (((item.get("summary") or [{}])[0]).get("text") or "")
+            for chunk in chunk_string(text, 160):
+                yield responses_sse("response.reasoning_summary_text.delta", {"output_index": idx, "summary_index": 0, "delta": chunk})
+            yield responses_sse("response.reasoning_summary_text.done", {"output_index": idx, "summary_index": 0, "text": text})
+            yield responses_sse("response.output_item.done", {"output_index": idx, "item": item})
+            continue
+        if item.get("type") == "message":
+            in_progress = {"id": item.get("id"), "type": "message", "role": "assistant", "status": "in_progress", "content": []}
+            yield responses_sse("response.output_item.added", {"output_index": idx, "item": in_progress})
+            yield responses_sse("response.content_part.added", {"output_index": idx, "content_index": 0, "part": {"type": "output_text", "text": "", "annotations": []}})
+            text = ((((item.get("content") or [{}])[0]).get("text")) or "")
+            for chunk in chunk_string(text, 160):
+                yield responses_sse("response.output_text.delta", {"output_index": idx, "content_index": 0, "delta": chunk})
+            part = {"type": "output_text", "text": text, "annotations": []}
+            yield responses_sse("response.output_text.done", {"output_index": idx, "content_index": 0, "text": text})
+            yield responses_sse("response.content_part.done", {"output_index": idx, "content_index": 0, "part": part})
+            yield responses_sse("response.output_item.done", {"output_index": idx, "item": item})
+    yield responses_sse("response.completed", {"response": build_response_object(response_id, model, "completed", output_items, usage)})
+
+
 def responses_to_openai_request(body):
     items = body.get("input")
     previous_messages = []
@@ -1487,6 +1856,41 @@ def build_log_detail(
     }
 
 
+def extract_reasoning_text(api_format: str, response_body: dict) -> str:
+    if api_format == "anthropic":
+        return "\n\n".join(
+            item.get("thinking", "")
+            for item in (response_body.get("content") or [])
+            if item.get("type") == "thinking" and item.get("thinking")
+        )
+    if api_format == "openai":
+        return (((response_body.get("choices") or [{}])[0].get("message") or {}).get("reasoning_content")) or ""
+    return "\n\n".join(
+        ((item.get("summary") or [{}])[0].get("text") or "")
+        for item in (response_body.get("output") or [])
+        if item.get("type") == "reasoning"
+    )
+
+
+def extract_usage_metrics(api_format: str, response_body: dict) -> dict:
+    usage = response_body.get("usage") or {}
+    if api_format == "anthropic":
+        input_tokens = int(usage.get("input_tokens") or 0)
+        output_tokens = int(usage.get("output_tokens") or 0)
+    elif api_format == "openai":
+        input_tokens = int(usage.get("prompt_tokens") or 0)
+        output_tokens = int(usage.get("completion_tokens") or 0)
+    else:
+        input_tokens = int(usage.get("input_tokens") or 0)
+        output_tokens = int(usage.get("output_tokens") or 0)
+    reasoning_text = extract_reasoning_text(api_format, response_body)
+    return build_usage_metrics(
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        reasoning_text=reasoning_text,
+    )
+
+
 # ---------- 路由 ----------
 def _normalize_auto_register_count(value) -> int:
     try:
@@ -1537,6 +1941,19 @@ def api_stats():
     if guard:
         return guard
     return jsonify(ACCOUNT_MANAGER.summary())
+
+
+@app.route("/api/usage", methods=["GET"])
+def api_usage():
+    guard = ensure_admin()
+    if guard:
+        return guard
+    return jsonify(
+        {
+            "usage": summarize_request_logs(),
+            "cache": response_cache_stats(),
+        }
+    )
 
 
 @app.route("/api/logs", methods=["GET"])
@@ -1993,6 +2410,61 @@ def messages():
     if thinking_system:
         extra_system_parts.append(thinking_system)
     prompt_text = anthropic_messages_to_text(system, msgs, extra_system="\n\n".join(extra_system_parts) if extra_system_parts else None)
+    cache_started = time.time()
+    cached_payload = get_cached_response("/v1/messages", upstream_model, prompt_text, tool_count=len(tools))
+    if cached_payload:
+        response_body = clone_cached_response(cached_payload)
+        cached_metrics = extract_usage_metrics("anthropic", response_body)
+        response_body["usage"] = attach_usage_details(
+            "anthropic",
+            response_body.get("usage"),
+            cache_read_input_tokens=cached_metrics["input_tokens"],
+        )
+        log_metrics = build_usage_metrics(
+            input_tokens=cached_metrics["input_tokens"],
+            output_tokens=cached_metrics["output_tokens"],
+            reasoning_text=extract_reasoning_text("anthropic", response_body),
+            cache_hit=True,
+        )
+        insert_request_log(
+            path="/v1/messages",
+            api_format="anthropic",
+            stream=stream,
+            client_model=req_model or "",
+            upstream_model=upstream_model,
+            account_id="",
+            account_name="app-cache",
+            ok=True,
+            status_code=200,
+            duration_ms=int((time.time() - cache_started) * 1000),
+            finish_reason=response_body.get("stop_reason") or "end_turn",
+            response_id=response_body.get("id") or "",
+            reasoning_chars=len(extract_reasoning_text("anthropic", response_body)),
+            input_tokens=log_metrics["input_tokens"],
+            output_tokens=log_metrics["output_tokens"],
+            total_tokens=log_metrics["total_tokens"],
+            reasoning_tokens=log_metrics["reasoning_tokens"],
+            cache_hit=True,
+            cache_read_input_tokens=log_metrics["cache_read_input_tokens"],
+            cache_creation_input_tokens=0,
+            detail=build_log_detail(
+                request_body=body,
+                response_body=response_body,
+                reasoning_text=extract_reasoning_text("anthropic", response_body),
+                prompt_text=prompt_text,
+                note="命中本地 exact response cache",
+                phases=[
+                    {"phase": "cache", "offset_ms": int((time.time() - cache_started) * 1000), "event_name": "cache_hit", "payload": {"path": "/v1/messages"}},
+                ],
+            ),
+        )
+        if stream:
+            return Response(
+                stream_with_context(anthropic_stream_from_cached(response_body)),
+                mimetype="text/event-stream",
+                headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"},
+            )
+        return jsonify(response_body)
     payload, chat_id = build_upstream_payload(upstream_model, prompt_text)
 
     log.info(
@@ -2022,8 +2494,9 @@ def messages():
     if stream:
         def generate():
             ok = True
+            capture = {}
             try:
-                yield from anthropic_stream(upstream, req_model or upstream_model, has_tools, wants_thinking=wants_thinking)
+                yield from anthropic_stream(upstream, req_model or upstream_model, has_tools, wants_thinking=wants_thinking, capture=capture)
             except Exception as e:
                 ok = False
                 ACCOUNT_MANAGER.mark_fail(account["id"], str(e))
@@ -2031,6 +2504,38 @@ def messages():
             finally:
                 if ok:
                     ACCOUNT_MANAGER.mark_ok(account["id"])
+                    visible_usage_in = int(capture.get("usage_in") or max(1, len(prompt_text) // 4))
+                    visible_usage_out = int(capture.get("usage_out") or 0)
+                    reasoning_text = capture.get("reasoning_text") or ""
+                    cache_written = False
+                    if not has_tools and (capture.get("content_blocks") or []):
+                        cached_body = {
+                            "id": "msg_" + uuid.uuid4().hex[:24],
+                            "type": "message",
+                            "role": "assistant",
+                            "model": req_model or upstream_model,
+                            "content": capture.get("content_blocks") or [{"type": "text", "text": ""}],
+                            "stop_reason": capture.get("stop_reason") or "end_turn",
+                            "stop_sequence": None,
+                            "usage": {
+                                "input_tokens": visible_usage_in,
+                                "output_tokens": visible_usage_out,
+                            },
+                        }
+                        cache_written = store_cached_response(
+                            path="/v1/messages",
+                            api_format="anthropic",
+                            upstream_model=upstream_model,
+                            prompt_text=prompt_text,
+                            tool_count=len(tools),
+                            response_body=cached_body,
+                        )
+                    usage_metrics = build_usage_metrics(
+                        input_tokens=visible_usage_in,
+                        output_tokens=visible_usage_out,
+                        reasoning_text=reasoning_text,
+                        cache_created=cache_written,
+                    )
                     insert_request_log(
                         path="/v1/messages",
                         api_format="anthropic",
@@ -2042,15 +2547,22 @@ def messages():
                         ok=True,
                         status_code=200,
                         duration_ms=int((time.time() - started) * 1000),
-                        finish_reason="stream_completed",
+                        finish_reason=capture.get("stop_reason") or "stream_completed",
                         tool_count=len(tools),
+                        input_tokens=usage_metrics["input_tokens"],
+                        output_tokens=usage_metrics["output_tokens"],
+                        total_tokens=usage_metrics["total_tokens"],
+                        reasoning_tokens=usage_metrics["reasoning_tokens"],
+                        cache_hit=False,
+                        cache_read_input_tokens=0,
+                        cache_creation_input_tokens=usage_metrics["cache_creation_input_tokens"],
                         detail=build_log_detail(
                             request_body=body,
                             prompt_text=prompt_text,
                             note="流式完成。详细 chunk 仍在前端调试台可见。",
                             phases=[
                                 {"phase": "reserve", "offset_ms": 0, "event_name": "account_reserved", "payload": {"account_id": account["id"]}},
-                                {"phase": "dispatch", "offset_ms": int((time.time() - started) * 1000), "event_name": "stream_completed", "payload": {"tool_mode": has_tools, "thinking_enabled": wants_thinking}},
+                                {"phase": "dispatch", "offset_ms": int((time.time() - started) * 1000), "event_name": "stream_completed", "payload": {"tool_mode": has_tools, "thinking_enabled": wants_thinking, "cache_written": cache_written}},
                             ],
                         ),
                     )
@@ -2070,6 +2582,33 @@ def messages():
     full, usage_in, usage_out, native_tools = collect_full_text(upstream)
     stop_reason, content_blocks, _reasoning = build_tool_use_blocks(full, native_tools, wants_thinking=wants_thinking)
     msg_id = "msg_" + uuid.uuid4().hex[:24]
+    public_usage = attach_usage_details("anthropic", {"input_tokens": usage_in, "output_tokens": usage_out or max(1, len(full) // 4)})
+    response_body = {
+        "id": msg_id,
+        "type": "message",
+        "role": "assistant",
+        "model": req_model or upstream_model,
+        "content": content_blocks,
+        "stop_reason": stop_reason,
+        "stop_sequence": None,
+        "usage": public_usage,
+    }
+    cache_written = False
+    if not has_tools:
+        cache_written = store_cached_response(
+            path="/v1/messages",
+            api_format="anthropic",
+            upstream_model=upstream_model,
+            prompt_text=prompt_text,
+            tool_count=len(tools),
+            response_body=response_body,
+        )
+    usage_metrics = build_usage_metrics(
+        input_tokens=usage_in,
+        output_tokens=usage_out or max(1, len(full) // 4),
+        reasoning_text="\n\n".join(item.get("thinking", "") for item in content_blocks if item.get("type") == "thinking"),
+        cache_created=cache_written,
+    )
     ACCOUNT_MANAGER.mark_ok(account["id"])
     insert_request_log(
         path="/v1/messages",
@@ -2086,6 +2625,13 @@ def messages():
         response_id=msg_id,
         tool_count=len([x for x in content_blocks if x.get("type") == "tool_use"]),
         reasoning_chars=len("\n\n".join(item.get("thinking", "") for item in content_blocks if item.get("type") == "thinking")),
+        input_tokens=usage_metrics["input_tokens"],
+        output_tokens=usage_metrics["output_tokens"],
+        total_tokens=usage_metrics["total_tokens"],
+        reasoning_tokens=usage_metrics["reasoning_tokens"],
+        cache_hit=False,
+        cache_read_input_tokens=0,
+        cache_creation_input_tokens=usage_metrics["cache_creation_input_tokens"],
         detail=build_log_detail(
             request_body=body,
             response_body={"content": content_blocks},
@@ -2094,26 +2640,12 @@ def messages():
             prompt_text=prompt_text,
             phases=[
                 {"phase": "reserve", "offset_ms": 0, "event_name": "account_reserved", "payload": {"account_id": account["id"]}},
-                {"phase": "collect", "offset_ms": int((time.time() - started) * 1000), "event_name": "full_response_collected", "payload": {"stop_reason": stop_reason}},
+                {"phase": "collect", "offset_ms": int((time.time() - started) * 1000), "event_name": "full_response_collected", "payload": {"stop_reason": stop_reason, "cache_written": cache_written}},
             ],
         ),
     )
     ACCOUNT_MANAGER.release_reservation(account["id"])
-    return jsonify(
-        {
-            "id": msg_id,
-            "type": "message",
-            "role": "assistant",
-            "model": req_model or upstream_model,
-            "content": content_blocks,
-            "stop_reason": stop_reason,
-            "stop_sequence": None,
-            "usage": {
-                "input_tokens": usage_in,
-                "output_tokens": usage_out or max(1, len(full) // 4),
-            },
-        }
-    )
+    return jsonify(response_body)
 
 
 # ---------- OpenAI 兼容 ----------
@@ -2148,6 +2680,58 @@ def chat_completions():
     if wants_reasoning:
         extra_system_parts.append(thinking_prompt(True))
     prompt_text = anthropic_messages_to_text(system_text, anth_msgs, extra_system="\n\n".join(extra_system_parts) if extra_system_parts else None)
+    cache_started = time.time()
+    cached_payload = get_cached_response("/v1/chat/completions", upstream_model, prompt_text, tool_count=len(tools))
+    if cached_payload:
+        response_body = clone_cached_response(cached_payload)
+        cached_metrics = extract_usage_metrics("openai", response_body)
+        response_body["usage"] = attach_usage_details(
+            "openai",
+            response_body.get("usage"),
+            reasoning_tokens=cached_metrics["reasoning_tokens"],
+            cache_read_input_tokens=cached_metrics["input_tokens"],
+        )
+        log_metrics = build_usage_metrics(
+            input_tokens=cached_metrics["input_tokens"],
+            output_tokens=cached_metrics["output_tokens"],
+            reasoning_text=extract_reasoning_text("openai", response_body),
+            cache_hit=True,
+        )
+        insert_request_log(
+            path="/v1/chat/completions",
+            api_format="openai",
+            stream=stream,
+            client_model=req_model or "",
+            upstream_model=upstream_model,
+            account_id="",
+            account_name="app-cache",
+            ok=True,
+            status_code=200,
+            duration_ms=int((time.time() - cache_started) * 1000),
+            finish_reason=((response_body.get("choices") or [{}])[0].get("finish_reason")) or "stop",
+            response_id=response_body.get("id") or "",
+            input_tokens=log_metrics["input_tokens"],
+            output_tokens=log_metrics["output_tokens"],
+            total_tokens=log_metrics["total_tokens"],
+            reasoning_tokens=log_metrics["reasoning_tokens"],
+            cache_hit=True,
+            cache_read_input_tokens=log_metrics["cache_read_input_tokens"],
+            detail=build_log_detail(
+                request_body=body,
+                response_body=response_body,
+                reasoning_text=extract_reasoning_text("openai", response_body),
+                prompt_text=prompt_text,
+                note="命中本地 exact response cache",
+                phases=[{"phase": "cache", "offset_ms": int((time.time() - cache_started) * 1000), "event_name": "cache_hit", "payload": {"path": "/v1/chat/completions"}}],
+            ),
+        )
+        if stream:
+            return Response(
+                stream_with_context(openai_stream_from_cached(response_body)),
+                mimetype="text/event-stream",
+                headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+            )
+        return jsonify(response_body)
 
     payload, chat_id = build_upstream_payload(upstream_model, prompt_text)
     result = _attempt_upstream_request(
@@ -2171,6 +2755,11 @@ def chat_completions():
     if stream:
         def gen():
             ok = True
+            text_parts = []
+            reasoning_text = ""
+            tool_calls = []
+            usage_in = 0
+            usage_out = 0
             try:
                 if has_tools or wants_reasoning:
                     full, usage_in, usage_out, native_tools = collect_full_text(upstream)
@@ -2278,6 +2867,7 @@ def chat_completions():
                         delta = ev.get("delta", "")
                         if not delta:
                             continue
+                        text_parts.append(delta)
                         chunk = {
                             "id": cmpl_id,
                             "object": "chat.completion.chunk",
@@ -2300,6 +2890,8 @@ def chat_completions():
                         "model": req_model or upstream_model,
                         "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
                     }
+                    usage_in = max(1, len(prompt_text) // 4)
+                    usage_out = max(1, len("".join(text_parts)) // 4)
                 yield write_openai_chunk(done)
                 yield "data: [DONE]\n\n"
             except Exception as e:
@@ -2309,6 +2901,49 @@ def chat_completions():
             finally:
                 if ok:
                     ACCOUNT_MANAGER.mark_ok(account["id"])
+                    visible_text = visible_text if 'visible_text' in locals() else "".join(text_parts)
+                    cache_written = False
+                    if not has_tools and not tool_calls:
+                        cache_response_body = {
+                            "id": cmpl_id,
+                            "object": "chat.completion",
+                            "created": created,
+                            "model": req_model or upstream_model,
+                            "choices": [
+                                {
+                                    "index": 0,
+                                    "message": {
+                                        "role": "assistant",
+                                        "content": visible_text or None,
+                                        **({"reasoning_content": reasoning_text} if wants_reasoning and reasoning_text else {}),
+                                    },
+                                    "finish_reason": done["choices"][0]["finish_reason"] if 'done' in locals() else "stop",
+                                }
+                            ],
+                            "usage": attach_usage_details(
+                                "openai",
+                                {
+                                    "prompt_tokens": usage_in or max(1, len(prompt_text) // 4),
+                                    "completion_tokens": usage_out or max(1, len(visible_text or "") // 4),
+                                    "total_tokens": (usage_in or max(1, len(prompt_text) // 4)) + (usage_out or max(1, len(visible_text or "") // 4)),
+                                },
+                                reasoning_tokens=estimate_text_tokens(reasoning_text),
+                            ),
+                        }
+                        cache_written = store_cached_response(
+                            path="/v1/chat/completions",
+                            api_format="openai",
+                            upstream_model=upstream_model,
+                            prompt_text=prompt_text,
+                            tool_count=len(tools),
+                            response_body=cache_response_body,
+                        )
+                    usage_metrics = build_usage_metrics(
+                        input_tokens=usage_in or max(1, len(prompt_text) // 4),
+                        output_tokens=usage_out or max(1, len(visible_text or "") // 4),
+                        reasoning_text=reasoning_text,
+                        cache_created=cache_written,
+                    )
                     insert_request_log(
                         path="/v1/chat/completions",
                         api_format="openai",
@@ -2324,6 +2959,13 @@ def chat_completions():
                         response_id=cmpl_id,
                         tool_count=len(tool_calls) if 'tool_calls' in locals() else len(tools),
                         reasoning_chars=len(reasoning_text or "") if 'reasoning_text' in locals() else 0,
+                        input_tokens=usage_metrics["input_tokens"],
+                        output_tokens=usage_metrics["output_tokens"],
+                        total_tokens=usage_metrics["total_tokens"],
+                        reasoning_tokens=usage_metrics["reasoning_tokens"],
+                        cache_hit=False,
+                        cache_read_input_tokens=0,
+                        cache_creation_input_tokens=usage_metrics["cache_creation_input_tokens"],
                         detail=build_log_detail(
                             request_body=body,
                             response_body={"finish_reason": done["choices"][0]["finish_reason"] if 'done' in locals() else "stream_completed"},
@@ -2332,7 +2974,7 @@ def chat_completions():
                             prompt_text=prompt_text,
                             phases=[
                                 {"phase": "reserve", "offset_ms": 0, "event_name": "account_reserved", "payload": {"account_id": account["id"]}},
-                                {"phase": "dispatch", "offset_ms": int((time.time() - started) * 1000), "event_name": "stream_completed", "payload": {"stream": True}},
+                                {"phase": "dispatch", "offset_ms": int((time.time() - started) * 1000), "event_name": "stream_completed", "payload": {"stream": True, "cache_written": cache_written}},
                             ],
                         ),
                     )
@@ -2346,6 +2988,49 @@ def chat_completions():
 
     text, usage_in, usage_out, _native = collect_full_text(upstream)
     visible_text, reasoning_text, tool_calls = build_openai_tool_calls(text, _native)
+    response_body = {
+        "id": cmpl_id,
+        "object": "chat.completion",
+        "created": created,
+        "model": req_model or upstream_model,
+        "choices": [
+            {
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": visible_text or None,
+                    **({"tool_calls": tool_calls} if tool_calls else {}),
+                    **({"reasoning_content": reasoning_text} if wants_reasoning and reasoning_text else {}),
+                },
+                "finish_reason": "tool_calls" if tool_calls else "stop",
+            }
+        ],
+        "usage": attach_usage_details(
+            "openai",
+            {
+                "prompt_tokens": usage_in or max(1, len(prompt_text) // 4),
+                "completion_tokens": usage_out or max(1, len(visible_text or text) // 4),
+                "total_tokens": (usage_in or max(1, len(prompt_text) // 4)) + (usage_out or max(1, len(visible_text or text) // 4)),
+            },
+            reasoning_tokens=estimate_text_tokens(reasoning_text),
+        ),
+    }
+    cache_written = False
+    if not tool_calls:
+        cache_written = store_cached_response(
+            path="/v1/chat/completions",
+            api_format="openai",
+            upstream_model=upstream_model,
+            prompt_text=prompt_text,
+            tool_count=len(tools),
+            response_body=response_body,
+        )
+    usage_metrics = build_usage_metrics(
+        input_tokens=usage_in or max(1, len(prompt_text) // 4),
+        output_tokens=usage_out or max(1, len(visible_text or text) // 4),
+        reasoning_text=reasoning_text,
+        cache_created=cache_written,
+    )
     ACCOUNT_MANAGER.mark_ok(account["id"])
     insert_request_log(
         path="/v1/chat/completions",
@@ -2362,6 +3047,13 @@ def chat_completions():
         response_id=cmpl_id,
         tool_count=len(tool_calls),
         reasoning_chars=len(reasoning_text or ""),
+        input_tokens=usage_metrics["input_tokens"],
+        output_tokens=usage_metrics["output_tokens"],
+        total_tokens=usage_metrics["total_tokens"],
+        reasoning_tokens=usage_metrics["reasoning_tokens"],
+        cache_hit=False,
+        cache_read_input_tokens=0,
+        cache_creation_input_tokens=usage_metrics["cache_creation_input_tokens"],
         detail=build_log_detail(
             request_body=body,
             response_body={"content": visible_text, "tool_calls": tool_calls},
@@ -2370,36 +3062,12 @@ def chat_completions():
             prompt_text=prompt_text,
             phases=[
                 {"phase": "reserve", "offset_ms": 0, "event_name": "account_reserved", "payload": {"account_id": account["id"]}},
-                {"phase": "collect", "offset_ms": int((time.time() - started) * 1000), "event_name": "full_response_collected", "payload": {"finish_reason": "tool_calls" if tool_calls else "stop"}},
+                {"phase": "collect", "offset_ms": int((time.time() - started) * 1000), "event_name": "full_response_collected", "payload": {"finish_reason": "tool_calls" if tool_calls else "stop", "cache_written": cache_written}},
             ],
         ),
     )
     ACCOUNT_MANAGER.release_reservation(account["id"])
-    return jsonify(
-        {
-            "id": cmpl_id,
-            "object": "chat.completion",
-            "created": created,
-            "model": req_model or upstream_model,
-            "choices": [
-                {
-                    "index": 0,
-                    "message": {
-                        "role": "assistant",
-                        "content": visible_text or None,
-                        **({"tool_calls": tool_calls} if tool_calls else {}),
-                        **({"reasoning_content": reasoning_text} if wants_reasoning and reasoning_text else {}),
-                    },
-                    "finish_reason": "tool_calls" if tool_calls else "stop",
-                }
-            ],
-            "usage": {
-                "prompt_tokens": usage_in or max(1, len(prompt_text) // 4),
-                "completion_tokens": usage_out or max(1, len(visible_text or text) // 4),
-                "total_tokens": (usage_in or max(1, len(prompt_text) // 4)) + (usage_out or max(1, len(visible_text or text) // 4)),
-            },
-        }
-    )
+    return jsonify(response_body)
 
 
 @app.route("/v1/responses", methods=["POST"])
@@ -2422,6 +3090,59 @@ def responses_api():
     if wants_reasoning:
         extra_system_parts.append(thinking_prompt(True))
     prompt_text = anthropic_messages_to_text(system_text, anth_msgs, extra_system="\n\n".join(extra_system_parts) if extra_system_parts else None)
+    cache_started = time.time()
+    cached_payload = get_cached_response("/v1/responses", upstream_model, prompt_text, tool_count=len(tools))
+    if cached_payload:
+        response_body = clone_cached_response(cached_payload)
+        cached_metrics = extract_usage_metrics("responses", response_body)
+        response_body["usage"] = attach_usage_details(
+            "responses",
+            response_body.get("usage"),
+            reasoning_tokens=cached_metrics["reasoning_tokens"],
+            cache_read_input_tokens=cached_metrics["input_tokens"],
+        )
+        log_metrics = build_usage_metrics(
+            input_tokens=cached_metrics["input_tokens"],
+            output_tokens=cached_metrics["output_tokens"],
+            reasoning_text=extract_reasoning_text("responses", response_body),
+            cache_hit=True,
+        )
+        insert_request_log(
+            path="/v1/responses",
+            api_format="responses",
+            stream=stream,
+            client_model=req_model or "",
+            upstream_model=upstream_model,
+            account_id="",
+            account_name="app-cache",
+            ok=True,
+            status_code=200,
+            duration_ms=int((time.time() - cache_started) * 1000),
+            finish_reason="stop",
+            response_id=response_body.get("id") or "",
+            input_tokens=log_metrics["input_tokens"],
+            output_tokens=log_metrics["output_tokens"],
+            total_tokens=log_metrics["total_tokens"],
+            reasoning_tokens=log_metrics["reasoning_tokens"],
+            cache_hit=True,
+            cache_read_input_tokens=log_metrics["cache_read_input_tokens"],
+            detail=build_log_detail(
+                request_body=body,
+                response_body=response_body,
+                reasoning_text=extract_reasoning_text("responses", response_body),
+                prompt_text=prompt_text,
+                previous_response_id=body.get("previous_response_id") or "",
+                note="命中本地 exact response cache",
+                phases=[{"phase": "cache", "offset_ms": int((time.time() - cache_started) * 1000), "event_name": "cache_hit", "payload": {"path": "/v1/responses"}}],
+            ),
+        )
+        if stream:
+            return Response(
+                stream_with_context(responses_stream_from_cached(response_body)),
+                mimetype="text/event-stream",
+                headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"},
+            )
+        return jsonify(response_body)
 
     payload, chat_id = build_upstream_payload(upstream_model, prompt_text)
     result = _attempt_upstream_request(
@@ -2523,6 +3244,17 @@ def responses_api():
                     output_items.append(done_item)
 
                 yield responses_sse("response.completed", {"response": build_response_object(response_id, req_model or upstream_model, "completed", output_items, usage)})
+                cache_written = False
+                if not tool_calls:
+                    cache_response_body = build_response_object(response_id, req_model or upstream_model, "completed", output_items, attach_usage_details("responses", usage, reasoning_tokens=estimate_text_tokens(reasoning_text)))
+                    cache_written = store_cached_response(
+                        path="/v1/responses",
+                        api_format="responses",
+                        upstream_model=upstream_model,
+                        prompt_text=prompt_text,
+                        tool_count=len(tools),
+                        response_body=cache_response_body,
+                    )
                 update_response_state(
                     response_id,
                     (openai_req.get("messages") or [])
@@ -2550,6 +3282,12 @@ def responses_api():
             finally:
                 if ok:
                     ACCOUNT_MANAGER.mark_ok(account["id"])
+                    usage_metrics = build_usage_metrics(
+                        input_tokens=usage.get("input_tokens") or max(1, len(prompt_text) // 4),
+                        output_tokens=usage.get("output_tokens") or max(1, len(visible_text or full) // 4),
+                        reasoning_text=reasoning_text,
+                        cache_created=cache_written if 'cache_written' in locals() else False,
+                    )
                     insert_request_log(
                         path="/v1/responses",
                         api_format="responses",
@@ -2565,6 +3303,13 @@ def responses_api():
                         response_id=response_id,
                         tool_count=len(tool_calls),
                         reasoning_chars=len(reasoning_text or ""),
+                        input_tokens=usage_metrics["input_tokens"],
+                        output_tokens=usage_metrics["output_tokens"],
+                        total_tokens=usage_metrics["total_tokens"],
+                        reasoning_tokens=usage_metrics["reasoning_tokens"],
+                        cache_hit=False,
+                        cache_read_input_tokens=0,
+                        cache_creation_input_tokens=usage_metrics["cache_creation_input_tokens"],
                         detail=build_log_detail(
                             request_body=body,
                             response_body={"output": output_items},
@@ -2575,7 +3320,7 @@ def responses_api():
                             phases=[
                                 {"phase": "reserve", "offset_ms": 0, "event_name": "account_reserved", "payload": {"account_id": account["id"]}},
                                 {"phase": "response.created", "offset_ms": 0, "event_name": "response_created", "payload": {"response_id": response_id}},
-                                {"phase": "response.completed", "offset_ms": int((time.time() - started) * 1000), "event_name": "response_completed", "payload": {"output_count": len(output_items)}},
+                                {"phase": "response.completed", "offset_ms": int((time.time() - started) * 1000), "event_name": "response_completed", "payload": {"output_count": len(output_items), "cache_written": cache_written if 'cache_written' in locals() else False}},
                             ],
                         ),
                     )
@@ -2625,6 +3370,29 @@ def responses_api():
             }
         )
 
+    response_body = build_response_object(
+        response_id,
+        req_model or upstream_model,
+        "completed",
+        output_items,
+        attach_usage_details("responses", usage, reasoning_tokens=estimate_text_tokens(reasoning_text)),
+    )
+    cache_written = False
+    if not tool_calls:
+        cache_written = store_cached_response(
+            path="/v1/responses",
+            api_format="responses",
+            upstream_model=upstream_model,
+            prompt_text=prompt_text,
+            tool_count=len(tools),
+            response_body=response_body,
+        )
+    usage_metrics = build_usage_metrics(
+        input_tokens=usage.get("input_tokens") or max(1, len(prompt_text) // 4),
+        output_tokens=usage.get("output_tokens") or max(1, len(visible_text or full) // 4),
+        reasoning_text=reasoning_text,
+        cache_created=cache_written,
+    )
     ACCOUNT_MANAGER.mark_ok(account["id"])
     insert_request_log(
         path="/v1/responses",
@@ -2641,6 +3409,13 @@ def responses_api():
         response_id=response_id,
         tool_count=len(tool_calls),
         reasoning_chars=len(reasoning_text or ""),
+        input_tokens=usage_metrics["input_tokens"],
+        output_tokens=usage_metrics["output_tokens"],
+        total_tokens=usage_metrics["total_tokens"],
+        reasoning_tokens=usage_metrics["reasoning_tokens"],
+        cache_hit=False,
+        cache_read_input_tokens=0,
+        cache_creation_input_tokens=usage_metrics["cache_creation_input_tokens"],
         detail=build_log_detail(
             request_body=body,
             response_body={"output": output_items},
@@ -2650,7 +3425,7 @@ def responses_api():
             previous_response_id=body.get("previous_response_id") or "",
             phases=[
                 {"phase": "reserve", "offset_ms": 0, "event_name": "account_reserved", "payload": {"account_id": account["id"]}},
-                {"phase": "collect", "offset_ms": int((time.time() - started) * 1000), "event_name": "response_completed", "payload": {"output_count": len(output_items)}},
+                {"phase": "collect", "offset_ms": int((time.time() - started) * 1000), "event_name": "response_completed", "payload": {"output_count": len(output_items), "cache_written": cache_written}},
             ],
         ),
     )
@@ -2660,10 +3435,10 @@ def responses_api():
         (openai_req.get("messages") or [])
         + [{"role": "assistant", "content": visible_text or None, **({"tool_calls": tool_calls} if tool_calls else {})}],
     )
-    return jsonify(build_response_object(response_id, req_model or upstream_model, "completed", output_items, usage))
+    return jsonify(response_body)
 
 
-if BACKGROUND_THREADS_ENABLED:
+if acquire_background_owner():
     threading.Thread(
         target=lambda: refresh_upstream_model_catalog(force=True),
         daemon=True,

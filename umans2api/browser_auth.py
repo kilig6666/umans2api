@@ -1,3 +1,4 @@
+import os
 import time
 from dataclasses import dataclass
 from urllib.parse import urlsplit
@@ -84,6 +85,19 @@ def _site_base_url(site_base_url: str | None, session_url: str | None) -> str:
 
 def _session_url(site_base_url: str, session_url: str | None) -> str:
     return (session_url or f"{site_base_url}/api/auth/session").rstrip("/")
+
+
+def _launch_args() -> list[str]:
+    args = []
+    if os.getenv("UMANS2API_PLAYWRIGHT_NO_SANDBOX") == "1":
+        args.extend(["--no-sandbox", "--disable-dev-shm-usage"])
+    else:
+        try:
+            if hasattr(os, "geteuid") and os.geteuid() == 0:
+                args.extend(["--no-sandbox", "--disable-dev-shm-usage"])
+        except Exception:
+            pass
+    return args
 
 
 def _find_submit_button(page):
@@ -199,7 +213,11 @@ def start_registration(email: str, password: str, *, mode: str = "visible", prox
     base_url = _site_base_url(site_base_url, session_url)
     real_session_url = _session_url(base_url, session_url)
     playwright = sync_playwright().start()
-    browser = playwright.chromium.launch(headless=normalized_mode != "visible", proxy=_build_proxy(proxy))
+    browser = playwright.chromium.launch(
+        headless=normalized_mode != "visible",
+        proxy=_build_proxy(proxy),
+        args=_launch_args(),
+    )
     context = browser.new_context(ignore_https_errors=True)
     page = context.new_page()
     page.set_default_timeout(timeout_ms)
@@ -251,7 +269,11 @@ def login_and_export_cookies(email: str, password: str, mode: str = "headless", 
     base_url = _site_base_url(site_base_url, session_url)
     real_session_url = _session_url(base_url, session_url)
     playwright = sync_playwright().start()
-    browser = playwright.chromium.launch(headless=normalized_mode != "visible", proxy=_build_proxy(proxy))
+    browser = playwright.chromium.launch(
+        headless=normalized_mode != "visible",
+        proxy=_build_proxy(proxy),
+        args=_launch_args(),
+    )
     context = browser.new_context(ignore_https_errors=True)
     page = context.new_page()
     page.set_default_timeout(timeout_ms)

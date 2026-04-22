@@ -1,0 +1,12 @@
+.git
+.gitignore
+.DS_Store
+.idea
+.codex
+.venv
+__pycache__
+**/__pycache__
+*.pyc
+data
+tests
+docs

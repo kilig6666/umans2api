@@ -978,6 +978,16 @@
                 </div>
                 <div id="overviewHighlights" class="mini-stack"></div>
               </div>
+              <div class="surface compact">
+                <div class="surface-header">
+                  <div>
+                    <span class="eyebrow">usage cache</span>
+                    <h3>用量与缓存</h3>
+                    <p>来自 /api/usage 的 token 与 cache 聚合。</p>
+                  </div>
+                </div>
+                <div id="overviewUsage" class="mini-stack"></div>
+              </div>
             </div>
           </div>
 
@@ -1259,6 +1269,8 @@
                         <th>路径</th>
                         <th>账号</th>
                         <th>结果</th>
+                        <th>总 Token</th>
+                        <th>缓存</th>
                         <th>耗时</th>
                       </tr>
                     </thead>
@@ -1443,6 +1455,29 @@
                   <textarea id="cfgMoemailChannelsJson" placeholder='[{\"id\":\"moe-1\",\"name\":\"Moe 1\",\"enabled\":true,\"api_key\":\"...\",\"api_base\":\"https://...\"}]'></textarea>
                 </div>
               </div>
+
+              <div class="config-group">
+                <div>
+                  <span class="eyebrow">cache</span>
+                  <h3>响应缓存</h3>
+                  <p>这个缓存是真正的 response cache，不是伪造 usage。当前只缓存无 tools 的稳定请求。</p>
+                </div>
+                <div>
+                  <label for="cfgResponseCacheEnabled">缓存开关</label>
+                  <select id="cfgResponseCacheEnabled">
+                    <option value="1">开启</option>
+                    <option value="0">关闭</option>
+                  </select>
+                </div>
+                <div>
+                  <label for="cfgResponseCacheTTL">TTL（秒）</label>
+                  <input id="cfgResponseCacheTTL" type="number" min="1">
+                </div>
+                <div>
+                  <label for="cfgResponseCacheMaxEntries">最大条目数</label>
+                  <input id="cfgResponseCacheMaxEntries" type="number" min="1">
+                </div>
+              </div>
             </div>
           </div>
         </section>
@@ -1593,6 +1628,8 @@
       selectedIds: new Set(),
       selectedLogId: null,
       stats: null,
+      usageStats: null,
+      cacheStats: null,
       accounts: [],
       logs: [],
       logDetails: {},
@@ -1736,18 +1773,28 @@
 
     function renderOverview() {
       const stats = appState.stats || {};
+      const usage = appState.usageStats || {};
+      const cache = appState.cacheStats || {};
       const runtime = appState.runtime || {};
       const config = appState.config || {};
       const accounts = appState.accounts || [];
       const logs = appState.logs || [];
+      const cachedTokens = Number(usage.cache_read_input_tokens || 0) + Number(usage.cache_creation_input_tokens || 0);
 
       document.getElementById('overviewStats').innerHTML = [
         {label: '总账号', value: stats.total ?? 0, note: '当前已纳入池子的账号数量'},
-        {label: '启用中', value: stats.enabled ?? 0, note: '允许参与轮询与保活'},
         {label: 'Healthy', value: stats.healthy ?? 0, note: '最近状态稳定可用'},
         {label: 'Expiring', value: stats.expiring ?? 0, note: '需要更关注 session 续期'},
-        {label: 'Cooling', value: stats.cooling ?? 0, note: '最近失败偏多，正在冷却'},
-        {label: 'Inflight', value: stats.inflight ?? 0, note: '当前被请求占用的账号数'}
+        {label: 'Inflight', value: stats.inflight ?? 0, note: '当前被请求占用的账号数'},
+        {label: '总请求', value: usage.total_requests ?? 0, note: '累计进入本服务的请求数'},
+        {label: '平均延迟', value: usage.avg_duration_ms ? `${usage.avg_duration_ms} ms` : '-', note: '按 request_logs 聚合'},
+        {label: '总 Token', value: usage.total_tokens ?? 0, note: '输入 + 输出 + cache 相关统计'},
+        {label: '输入 Token', value: usage.input_tokens ?? 0, note: '请求输入消耗'},
+        {label: '输出 Token', value: usage.output_tokens ?? 0, note: '模型输出消耗'},
+        {label: '思考 Token', value: usage.reasoning_tokens ?? 0, note: 'reasoning / thinking 消耗'},
+        {label: '缓存 Token', value: cachedTokens, note: 'cache read + cache create'},
+        {label: '缓存命中率', value: `${usage.cache_hit_rate ?? 0}%`, note: `命中 ${usage.cache_hits ?? 0} 次`},
+        {label: '缓存条目', value: cache.entries ?? 0, note: `当前累计命中 ${cache.hits ?? 0} 次`}
       ].map(item => `
         <div class="metric-card">
           <div class="metric-label">${item.label}</div>
@@ -1761,6 +1808,7 @@
         <div class="mini-row"><span>默认模型</span><strong>${esc(runtime.default_model || '-')}</strong></div>
         <div class="mini-row"><span>上游站点</span><strong>${esc(runtime.site_base_url || '-')}</strong></div>
         <div class="mini-row"><span>数据库</span><strong>${esc((runtime.db_path || '').split('/').pop() || '-')}</strong></div>
+        <div class="mini-row"><span>缓存 TTL</span><strong>${esc(config.RESPONSE_CACHE_TTL_SECONDS || 300)} s</strong></div>
       `;
 
       const latestLog = logs[0];
@@ -1769,7 +1817,8 @@
         <div class="mini-row"><span>最近请求</span><strong>${latestLog ? esc(latestLog.path) + ' · ' + (latestLog.ok ? '成功' : '失败') : '暂无'}</strong></div>
         <div class="mini-row"><span>最近命中账号</span><strong>${latestLog ? esc(latestLog.account_name || latestLog.account_id || '-') : '暂无'}</strong></div>
         <div class="mini-row"><span>重点关注账号</span><strong>${latestAccount ? esc(latestAccount.name || latestAccount.id.slice(0, 8)) : '暂无'}</strong></div>
-        <div class="mini-row"><span>保活兜底</span><strong>${config.keepalive_chat_fallback_enabled ? '已开启' : '已关闭'}</strong></div>
+        <div class="mini-row"><span>缓存开关</span><strong>${config.RESPONSE_CACHE_ENABLED ? '已开启' : '已关闭'}</strong></div>
+        <div class="mini-row"><span>缓存命中率</span><strong>${esc(usage.cache_hit_rate ?? 0)}%</strong></div>
         <div class="mini-row"><span>自动补号</span><strong>${config.AUTO_REGISTER_ENABLED ? '已开启' : '已关闭'}</strong></div>
       `;
 
@@ -1790,8 +1839,8 @@
             <strong>${esc(log.path || '-')}</strong>
             <span class="chip ${log.ok ? 'tone-healthy' : 'tone-disabled'}">${log.ok ? '成功' : '失败'} · ${esc(log.status_code)}</span>
           </div>
-          <div class="meta-line">账号：${esc(log.account_name || log.account_id || '-')} · 耗时：${esc(log.duration_ms)} ms</div>
-          <small>${esc(log.error || '无错误，链路正常。')}</small>
+          <div class="meta-line">账号：${esc(log.account_name || log.account_id || '-')} · 总 token：${esc(log.total_tokens ?? 0)} · 耗时：${esc(log.duration_ms)} ms</div>
+          <small>${log.cache_hit ? '缓存命中。' : '实时请求。'} ${esc(log.error || '链路正常。')}</small>
         </div>
       `).join('') || '<div class="list-item"><small>暂无请求日志，先去调试区发一次请求。</small></div>';
     }
@@ -1955,15 +2004,21 @@
     function renderLogs() {
       const rows = document.getElementById('logRows');
       const logs = appState.logs || [];
+      const usage = appState.usageStats || {};
       if (!appState.selectedLogId && logs.length) appState.selectedLogId = logs[0].id;
       const okCount = logs.filter(item => item.ok).length;
       const failCount = logs.length - okCount;
       const avgLatency = logs.length ? Math.round(logs.reduce((sum, item) => sum + (item.duration_ms || 0), 0) / logs.length) : 0;
+      const cachedTokens = Number(usage.cache_read_input_tokens || 0) + Number(usage.cache_creation_input_tokens || 0);
       document.getElementById('logOverviewStats').innerHTML = [
         {label: '最近日志数', value: logs.length, note: '当前面板内的摘要数量'},
         {label: '成功', value: okCount, note: '最近成功请求'},
         {label: '失败', value: failCount, note: '最近失败请求'},
-        {label: '平均耗时', value: avgLatency ? `${avgLatency} ms` : '-', note: '按当前日志窗口估算'}
+        {label: '平均耗时', value: avgLatency ? `${avgLatency} ms` : '-', note: '按当前日志窗口估算'},
+        {label: '累计总 Token', value: usage.total_tokens ?? 0, note: '来自 request_logs 聚合'},
+        {label: '累计缓存 Token', value: cachedTokens, note: 'cache read + cache create'},
+        {label: '累计思考 Token', value: usage.reasoning_tokens ?? 0, note: 'reasoning / thinking 消耗'},
+        {label: '缓存命中率', value: `${usage.cache_hit_rate ?? 0}%`, note: `命中 ${usage.cache_hits ?? 0} 次`}
       ].map(item => `
         <div class="metric-card">
           <div class="metric-label">${item.label}</div>
@@ -1978,9 +2033,11 @@
           <td>${esc(log.path || '-')}</td>
           <td>${esc(log.account_name || log.account_id || '-')}</td>
           <td><span class="chip ${log.ok ? 'tone-healthy' : 'tone-disabled'}">${log.ok ? '成功' : '失败'} · ${esc(log.status_code)}</span></td>
+          <td>${esc(log.total_tokens ?? 0)}</td>
+          <td>${log.cache_hit ? '命中' : '-'}</td>
           <td>${esc(log.duration_ms)} ms</td>
         </tr>
-      `).join('') || '<tr><td colspan="6">暂无日志</td></tr>';
+      `).join('') || '<tr><td colspan="8">暂无日志</td></tr>';
 
       const selected = appState.logDetails[appState.selectedLogId] || logs.find(item => item.id === appState.selectedLogId) || null;
       const detail = selected?.detail || {};
@@ -1993,16 +2050,46 @@
         <div class="kv-card"><div class="label">命中账号</div><div class="value">${esc(selected.account_name || selected.account_id || '-')}</div></div>
         <div class="kv-card"><div class="label">结果</div><div class="value">${selected.ok ? '成功' : '失败'} · ${esc(selected.status_code)}</div></div>
         <div class="kv-card"><div class="label">耗时</div><div class="value">${esc(selected.duration_ms)} ms</div></div>
+        <div class="kv-card"><div class="label">输入 Token</div><div class="value">${esc(selected.input_tokens ?? 0)}</div></div>
+        <div class="kv-card"><div class="label">输出 Token</div><div class="value">${esc(selected.output_tokens ?? 0)}</div></div>
+        <div class="kv-card"><div class="label">总 Token</div><div class="value">${esc(selected.total_tokens ?? 0)}</div></div>
+        <div class="kv-card"><div class="label">思考 Token</div><div class="value">${esc(selected.reasoning_tokens ?? 0)}</div></div>
+        <div class="kv-card"><div class="label">缓存命中</div><div class="value">${selected.cache_hit ? '是' : '否'}</div></div>
+        <div class="kv-card"><div class="label">缓存读入 Token</div><div class="value">${esc(selected.cache_read_input_tokens ?? 0)}</div></div>
+        <div class="kv-card"><div class="label">缓存写入 Token</div><div class="value">${esc(selected.cache_creation_input_tokens ?? 0)}</div></div>
         <div class="kv-card"><div class="label">停止原因</div><div class="value">${esc(selected.finish_reason || '-')}</div></div>
         <div class="kv-card"><div class="label">Response ID</div><div class="value">${esc(selected.response_id || '-')}</div></div>
         <div class="kv-card"><div class="label">工具调用数</div><div class="value">${esc(selected.tool_count ?? 0)}</div></div>
         <div class="kv-card"><div class="label">思考链字符</div><div class="value">${esc(selected.reasoning_chars ?? 0)}</div></div>
       ` : '<div class="kv-card"><div class="value">暂无日志明细</div></div>';
       document.getElementById('logDetailTimeline').textContent = selected
-        ? (timeline.length ? timeline.map((item, index) => `${index + 1}. [${item.phase || '-'}] +${item.offset_ms ?? 0}ms  ${item.event_name || '-'}\n${JSON.stringify(item.payload || {}, null, 2)}`).join('\n\n') : `暂无细分时间线。\n\n时间：${fmtTs(selected.ts)}\n路径：${selected.path}\n状态：${selected.ok ? '成功' : '失败'} · ${selected.status_code}`)
+        ? (timeline.length ? timeline.map((item, index) => `${index + 1}. [${item.phase || '-'}] +${item.offset_ms ?? 0}ms  ${item.event_name || '-'}
+${JSON.stringify(item.payload || {}, null, 2)}`).join('\n\n') : `暂无细分时间线。
+
+时间：${fmtTs(selected.ts)}
+路径：${selected.path}
+状态：${selected.ok ? '成功' : '失败'} · ${selected.status_code}`)
         : '暂无日志明细';
       document.getElementById('logDetailBody').textContent = selected
-        ? `请求摘要：\n${detail.request?.preview || '-'}\n\nPrompt 预览：\n${detail.request?.prompt_preview || '-'}\n\n响应摘要：\n${detail.response?.preview || '-'}\n\n思考链摘要：\n${detail.response?.reasoning_preview || '-'}\n\n备注：\n${detail.note || selected.error || '无'}`
+        ? `请求摘要：
+${detail.request?.preview || '-'}
+
+Prompt 预览：
+${detail.request?.prompt_preview || '-'}
+
+响应摘要：
+${detail.response?.preview || '-'}
+
+思考链摘要：
+${detail.response?.reasoning_preview || '-'}
+
+缓存信息：
+cache_hit=${selected.cache_hit ? 'true' : 'false'}
+cache_read_input_tokens=${selected.cache_read_input_tokens ?? 0}
+cache_creation_input_tokens=${selected.cache_creation_input_tokens ?? 0}
+
+备注：
+${detail.note || selected.error || '无'}`
         : '暂无日志明细';
       document.getElementById('logDetailRaw').textContent = selected ? JSON.stringify(selected.detail || {}, null, 2) : '暂无 detail JSON';
     }
@@ -2041,6 +2128,9 @@
       document.getElementById('cfgMoemailApiKey').value = config.MOEMAIL_API_KEY || '';
       document.getElementById('cfgMoemailApiBase').value = config.MOEMAIL_API_BASE || '';
       document.getElementById('cfgMoemailChannelsJson').value = config.MOEMAIL_CHANNELS_JSON || '';
+      document.getElementById('cfgResponseCacheEnabled').value = config.RESPONSE_CACHE_ENABLED ? '1' : '0';
+      document.getElementById('cfgResponseCacheTTL').value = config.RESPONSE_CACHE_TTL_SECONDS || 300;
+      document.getElementById('cfgResponseCacheMaxEntries').value = config.RESPONSE_CACHE_MAX_ENTRIES || 1000;
     }
 
     function renderChat() {
@@ -2232,14 +2322,15 @@
     }
 
     async function loadAll() {
-      const [stats, accountsRes, logsRes, config, runtime, modelsRes, autoRegisterConfig] = await Promise.all([
+      const [stats, accountsRes, logsRes, config, runtime, modelsRes, autoRegisterConfig, usageRes] = await Promise.all([
         api('/api/stats'),
         api('/api/accounts'),
         api('/api/logs'),
         api('/api/config'),
         api('/api/runtime'),
         api('/v1/models'),
-        api('/api/auto-register/config')
+        api('/api/auto-register/config'),
+        api('/api/usage').catch(() => null)
       ]);
       appState.stats = stats;
       appState.accounts = accountsRes.accounts || [];
@@ -2249,6 +2340,8 @@
       appState.models = modelsRes.data || [];
       appState.autoRegisterConfig = autoRegisterConfig || {};
       appState.registerTask = autoRegisterConfig.current_task || null;
+      appState.usageStats = usageRes?.usage || {};
+      appState.cacheStats = usageRes?.cache || {};
       const lostSelected = appState.selectedAccountId && !appState.accounts.some(acc => acc.id === appState.selectedAccountId);
       const lostEditing = appState.editingAccountId && !appState.accounts.some(acc => acc.id === appState.editingAccountId);
       if (lostSelected) appState.selectedAccountId = null;
@@ -2511,7 +2604,10 @@
             MAIL_PROVIDER_DEFAULT: document.getElementById('cfgMailProviderDefault').value.trim(),
             MOEMAIL_API_KEY: document.getElementById('cfgMoemailApiKey').value.trim(),
             MOEMAIL_API_BASE: document.getElementById('cfgMoemailApiBase').value.trim(),
-            MOEMAIL_CHANNELS_JSON: document.getElementById('cfgMoemailChannelsJson').value.trim()
+            MOEMAIL_CHANNELS_JSON: document.getElementById('cfgMoemailChannelsJson').value.trim(),
+            RESPONSE_CACHE_ENABLED: document.getElementById('cfgResponseCacheEnabled').value === '1',
+            RESPONSE_CACHE_TTL_SECONDS: Number(document.getElementById('cfgResponseCacheTTL').value),
+            RESPONSE_CACHE_MAX_ENTRIES: Number(document.getElementById('cfgResponseCacheMaxEntries').value)
           })
         });
         await loadAll();
